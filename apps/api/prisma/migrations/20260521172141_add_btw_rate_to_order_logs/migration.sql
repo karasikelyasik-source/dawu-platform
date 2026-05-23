@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "TableOrderLog" ADD COLUMN     "btwRate" DOUBLE PRECISION NOT NULL DEFAULT 9;

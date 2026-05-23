@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "MenuItem" ADD COLUMN     "btwRate" DOUBLE PRECISION NOT NULL DEFAULT 9;

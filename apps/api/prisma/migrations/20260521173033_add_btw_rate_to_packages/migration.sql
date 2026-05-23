@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Package" ADD COLUMN     "btwRate" DOUBLE PRECISION NOT NULL DEFAULT 9;

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Payment" ADD COLUMN     "tip" DOUBLE PRECISION NOT NULL DEFAULT 0;

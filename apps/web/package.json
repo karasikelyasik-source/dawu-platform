@@ -1,0 +1,79 @@
+{
+  "name": "dawu-pos",
+  "version": "1.0.1",
+  "private": true,
+  "main": "electron-main.js",
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "lint": "eslint",
+    "electron": "electron electron-main.js",
+    "desktop": "concurrently \"npm run dev\" \"wait-on http://localhost:3001 && npm run electron\"",
+    "dist": "npm run build && node scripts/prepare-standalone.js && electron-builder"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "wait-on": "^9.0.10"
+  },
+  "build": {
+    "appId": "com.dawu.pos",
+    "productName": "DaWu POS",
+   "publish": [
+  {
+    "provider": "github",
+    "owner": "karasikelyasik-source",
+    "repo": "dawu-platform"
+  }
+],
+    "asar": true,
+    "files": [
+      "electron-main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "electron-standalone/server.js",
+        "to": "standalone/server.js"
+      },
+      {
+        "from": "electron-standalone/.next",
+        "to": "standalone/.next"
+      },
+      {
+        "from": "electron-standalone/node_modules",
+        "to": "standalone/node_modules"
+      },
+      {
+        "from": "electron-standalone/package.json",
+        "to": "standalone/package.json"
+      },
+      {
+        "from": "electron-standalone/public",
+        "to": "standalone/public"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
+  }
+}

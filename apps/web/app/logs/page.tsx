@@ -18,14 +18,14 @@ export default function LogsPage() {
   const [logs, setLogs] = useState<LogItem[]>([]);
 
   async function loadLogs() {
-    const res = await fetch('http://localhost:3000/tables/logs/all');
+    const res = await fetch('http://31.57.201.45:3000/tables/logs/all');
     const data = await res.json();
 
     setLogs(Array.isArray(data) ? data : []);
   }
 
   async function undoLog(id: string) {
-    await fetch(`http://localhost:3000/tables/logs/${id}/undo`, {
+    await fetch(`http://31.57.201.45:3000/tables/logs/${id}/undo`, {
       method: 'POST',
     });
 
@@ -40,7 +40,7 @@ export default function LogsPage() {
     if (!confirmed) return;
 
     await fetch(
-      'http://localhost:3000/tables/logs/clear/all',
+      'http://31.57.201.45:3000/tables/logs/clear/all',
       {
         method: 'DELETE',
       },

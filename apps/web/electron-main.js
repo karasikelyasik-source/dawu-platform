@@ -223,7 +223,7 @@ async function printTicket(ticket) {
 
           if (success) {
             await fetch(
-              `http://localhost:3000/tables/kitchen-tickets/${ticket.id}/printed`,
+              `http://31.57.201.45:3000/tables/kitchen-tickets/${ticket.id}/printed`,
               {
                 method: 'PATCH',
               },
@@ -245,7 +245,7 @@ function startKitchenPrinterWatcher() {
       printing = true;
 
       const res = await fetch(
-        'http://localhost:3000/tables/kitchen-tickets/pending',
+        'http://31.57.201.45:3000/tables/kitchen-tickets/pending',
       );
 
       const tickets = await res.json();

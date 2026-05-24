@@ -28,14 +28,14 @@ export default function PrintersPage() {
   const [printerIp, setPrinterIp] = useState('');
 
   async function loadStations() {
-    const res = await fetch('http://localhost:3000/menu/stations');
+    const res = await fetch('http://31.57.201.45:3000/menu/stations');
     const data = await res.json();
 
     setStations(Array.isArray(data) ? data : []);
   }
 
   async function loadMenu() {
-    const res = await fetch('http://localhost:3000/menu');
+    const res = await fetch('http://31.57.201.45:3000/menu');
     const data = await res.json();
 
     const allItems = data.flatMap((category: any) => category.items || []);
@@ -46,7 +46,7 @@ export default function PrintersPage() {
   async function addStation() {
     if (!name.trim()) return;
 
-    await fetch('http://localhost:3000/menu/stations', {
+    await fetch('http://31.57.201.45:3000/menu/stations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -63,7 +63,7 @@ export default function PrintersPage() {
   }
 
   async function deleteStation(id: string) {
-    await fetch(`http://localhost:3000/menu/stations/${id}`, {
+    await fetch(`http://31.57.201.45:3000/menu/stations/${id}`, {
       method: 'DELETE',
     });
 
@@ -72,7 +72,7 @@ export default function PrintersPage() {
   }
 
   async function assignItemToStation(menuItemId: string, stationId: string) {
-    await fetch('http://localhost:3000/menu/items/station', {
+    await fetch('http://31.57.201.45:3000/menu/items/station', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -87,7 +87,7 @@ export default function PrintersPage() {
 
   async function setReceiptPrinter(id: string) {
     await fetch(
-      `http://localhost:3000/menu/stations/${id}/receipt-printer`,
+      `http://31.57.201.45:3000/menu/stations/${id}/receipt-printer`,
       {
         method: 'PATCH',
       },

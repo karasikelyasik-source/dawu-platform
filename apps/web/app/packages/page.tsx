@@ -17,7 +17,7 @@ export default function PackagesPage() {
   const [btwRate, setBtwRate] = useState('9');
 
   async function loadPackages() {
-    const res = await fetch('http://localhost:3000/menu/packages');
+    const res = await fetch('http://31.57.201.45:3000/menu/packages');
     const data = await res.json();
     setPackages(Array.isArray(data) ? data : []);
   }
@@ -25,7 +25,7 @@ export default function PackagesPage() {
   async function addPackage() {
     if (!name.trim()) return;
 
-    await fetch('http://localhost:3000/menu/packages', {
+    await fetch('http://31.57.201.45:3000/menu/packages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -43,7 +43,7 @@ export default function PackagesPage() {
   }
 
   async function deletePackage(id: string) {
-    await fetch(`http://localhost:3000/menu/packages/${id}`, {
+    await fetch(`http://31.57.201.45:3000/menu/packages/${id}`, {
       method: 'DELETE',
     });
 

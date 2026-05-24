@@ -22,13 +22,13 @@ export default function RevenuePage() {
   const [filter, setFilter] = useState<FilterType>('TODAY');
 
   async function loadPayments() {
-    const res = await fetch('http://localhost:3000/tables/payments/all');
+    const res = await fetch('http://31.57.201.45:3000/tables/payments/all');
     const data = await res.json();
     setPayments(Array.isArray(data) ? data : []);
   }
 
   async function deletePayment(id: string) {
-    await fetch(`http://localhost:3000/tables/payments/${id}`, {
+    await fetch(`http://31.57.201.45:3000/tables/payments/${id}`, {
       method: 'DELETE',
     });
 
@@ -41,7 +41,7 @@ export default function RevenuePage() {
       return;
     }
 
-    await fetch('http://localhost:3000/tables/payments/all/delete', {
+    await fetch('http://31.57.201.45:3000/tables/payments/all/delete', {
       method: 'DELETE',
     });
 

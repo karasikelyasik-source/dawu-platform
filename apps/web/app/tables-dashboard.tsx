@@ -15,7 +15,7 @@ export default function TablesDashboard() {
   const [tables, setTables] = useState<Table[]>([]);
 
   async function loadTables() {
-    const res = await fetch('http://localhost:3000/tables', {
+    const res = await fetch('http://31.57.201.45:3000/tables', {
       cache: 'no-store',
     });
 

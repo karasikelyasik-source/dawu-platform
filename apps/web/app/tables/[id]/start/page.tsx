@@ -23,14 +23,14 @@ export default function StartTablePage() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   async function loadPackages() {
-    const res = await fetch('http://localhost:3000/menu/packages');
+    const res = await fetch('http://31.57.201.45:3000/menu/packages');
     const data = await res.json();
 
     setPackages(Array.isArray(data) ? data : []);
   }
 
   async function loadTable() {
-    const res = await fetch(`http://localhost:3000/tables/${tableId}`);
+    const res = await fetch(`http://31.57.201.45:3000/tables/${tableId}`);
     const data = await res.json();
 
     if (Array.isArray(data.selectedPackages)) {
@@ -91,7 +91,7 @@ export default function StartTablePage() {
       0,
     );
 
-    await fetch(`http://localhost:3000/tables/${tableId}/package`, {
+    await fetch(`http://31.57.201.45:3000/tables/${tableId}/package`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ export default function StartTablePage() {
       }),
     });
 
-    await fetch(`http://localhost:3000/tables/${tableId}/status`, {
+    await fetch(`http://31.57.201.45:3000/tables/${tableId}/status`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',

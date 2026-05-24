@@ -56,20 +56,20 @@ export default function TablePage() {
   const [paidAmount, setPaidAmount] = useState('');
 
   async function loadTable() {
-    const res = await fetch(`http://localhost:3000/tables/${tableId}`);
+    const res = await fetch(`http://31.57.201.45:3000/tables/${tableId}`);
     const data = await res.json();
     setTable(data);
   }
 
   async function loadMenu() {
-    const res = await fetch('http://localhost:3000/menu');
+    const res = await fetch('http://31.57.201.45:3000/menu');
     const data = await res.json();
     const items = data.flatMap((category: any) => category.items || []);
     setMenu(items);
   }
 
   async function loadOrders() {
-    const res = await fetch(`http://localhost:3000/tables/${tableId}/order-logs`);
+    const res = await fetch(`http://31.57.201.45:3000/tables/${tableId}/order-logs`);
     const data = await res.json();
 
     setOrders(
@@ -86,7 +86,7 @@ export default function TablePage() {
   async function updateTableStatus(
     status: 'AVAILABLE' | 'OCCUPIED' | 'CLEANING',
   ) {
-    await fetch(`http://localhost:3000/tables/${tableId}/status`, {
+    await fetch(`http://31.57.201.45:3000/tables/${tableId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
@@ -96,7 +96,7 @@ export default function TablePage() {
   }
 
   async function addOrder(item: MenuItem) {
-    await fetch(`http://localhost:3000/tables/${tableId}/order-logs`, {
+    await fetch(`http://31.57.201.45:3000/tables/${tableId}/order-logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -110,7 +110,7 @@ export default function TablePage() {
   }
 
   async function removeOrder(id: string) {
-    await fetch(`http://localhost:3000/tables/order-logs/${id}`, {
+    await fetch(`http://31.57.201.45:3000/tables/order-logs/${id}`, {
       method: 'DELETE',
     });
 
@@ -118,7 +118,7 @@ export default function TablePage() {
   }
 
   async function readyTable() {
-    await fetch(`http://localhost:3000/tables/${tableId}/ready`, {
+    await fetch(`http://31.57.201.45:3000/tables/${tableId}/ready`, {
       method: 'POST',
     });
 
@@ -129,7 +129,7 @@ export default function TablePage() {
   }
 
   async function closeTableAndPrintCheck() {
-    const printerRes = await fetch('http://localhost:3000/menu/receipt-printer');
+    const printerRes = await fetch('http://31.57.201.45:3000/menu/receipt-printer');
     const receiptPrinter = await printerRes.json();
 
 await window.dawu?.printReceipt({
@@ -172,7 +172,7 @@ const tip = Math.max(0, paid - total);
 
 
 async function confirmPayment() {
-  await fetch(`http://localhost:3000/tables/${tableId}/pay`, {
+  await fetch(`http://31.57.201.45:3000/tables/${tableId}/pay`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

@@ -28,7 +28,7 @@ export default function TipsPage() {
 
   async function loadPayments() {
     const res = await fetch(
-      'http://localhost:3000/tables/payments/all',
+      'http://31.57.201.45:3000/tables/payments/all',
     );
 
     const data = await res.json();
@@ -38,7 +38,7 @@ export default function TipsPage() {
 
   async function removeTip(id: string) {
     await fetch(
-      `http://localhost:3000/tables/payments/${id}/remove-tip`,
+      `http://31.57.201.45:3000/tables/payments/${id}/remove-tip`,
       {
         method: 'PATCH',
       },

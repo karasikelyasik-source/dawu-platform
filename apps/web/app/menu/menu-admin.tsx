@@ -27,7 +27,7 @@ export default function MenuAdmin() {
   const [categoryId, setCategoryId] = useState('');
 
   async function loadMenu() {
-    const res = await fetch('http://localhost:3000/menu');
+    const res = await fetch('http://31.57.201.45:3000/menu');
     const data = await res.json();
 
     setCategories(Array.isArray(data) ? data : []);
@@ -40,7 +40,7 @@ export default function MenuAdmin() {
   async function addItem() {
     if (!name.trim()) return;
 
-    await fetch('http://localhost:3000/menu/items', {
+    await fetch('http://31.57.201.45:3000/menu/items', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,7 +60,7 @@ export default function MenuAdmin() {
   }
 
   async function deleteItem(id: string) {
-    await fetch(`http://localhost:3000/menu/items/${id}`, {
+    await fetch(`http://31.57.201.45:3000/menu/items/${id}`, {
       method: 'DELETE',
     });
 

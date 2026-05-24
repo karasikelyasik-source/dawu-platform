@@ -1,10 +1,11 @@
 const { spawn } = require('child_process');
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
 
 let mainWindow;
+let updateWindow;
 let printing = false;
 let nextServerProcess = null;
 
@@ -92,22 +93,316 @@ function createWindow() {
     height: 900,
     title: 'DaWu POS',
     autoHideMenuBar: true,
+   webPreferences: {
+  preload: path.join(__dirname, 'preload.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+  partition: 'nopersist',
+},
+  });
+
+  const startUrl = 'http://localhost:3001';
+
+
+function createUpdateWindow() {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.focus();
+    return;
+  }
+
+  updateWindow = new BrowserWindow({
+    width: 520,
+    height: 420,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    title: 'DaWu POS Update',
+    backgroundColor: '#09090b',
+    autoHideMenuBar: true,
+    parent: mainWindow,
+    modal: false,
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
 
-  const startUrl = 'http://localhost:3001';
+  updateWindow.on('closed', () => {
+    updateWindow = null;
+  });
+}
+
+function updateWindowHtml(state) {
+  const percent = Math.round(state.percent || 0);
+  const total = state.total || '';
+  const transferred = state.transferred || '';
+  const version = state.version || '';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #18181b, #09090b 65%);
+      color: white;
+      font-family: Arial, Helvetica, sans-serif;
+      overflow: hidden;
+    }
+    .wrap {
+      height: 100vh;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+    }
+    .icon {
+      width: 84px;
+      height: 84px;
+      margin: 0 auto 26px;
+      border-radius: 50%;
+      background: #202126;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 38px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 26px;
+    }
+    p {
+      margin: 0;
+      color: #b8bcc7;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: #27272a;
+      font-weight: 700;
+    }
+    .progressBox {
+      margin-top: 28px;
+    }
+    .bar {
+      height: 10px;
+      background: #27272a;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .fill {
+      height: 100%;
+      width: ${percent}%;
+      background: white;
+      border-radius: 999px;
+      transition: width .25s ease;
+    }
+    .meta {
+      margin-top: 12px;
+      display: flex;
+      justify-content: space-between;
+      color: #b8bcc7;
+      font-size: 14px;
+    }
+    .actions {
+      margin-top: 34px;
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+    }
+    button {
+      width: 170px;
+      height: 52px;
+      border: 0;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary {
+      background: white;
+      color: black;
+    }
+    .secondary {
+      background: #27272a;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    ${
+      state.type === 'checking'
+        ? `
+          <div class="icon">🔍</div>
+          <h1>Checking for updates</h1>
+          <p>Looking for a new DaWu POS version...</p>
+        `
+        : ''
+    }
+
+    ${
+      state.type === 'available'
+        ? `
+          <div class="icon">⬇</div>
+          <h1>New version available</h1>
+          <p>Version <b>${version}</b>${total ? ` • ${total}` : ''}</p>
+          <p>Do you want to download the update now?</p>
+          <div class="actions">
+            <button class="secondary" onclick="window.close()">Later</button>
+          <button class="primary" onclick="window.postMessage('install-update', '*')">Restart</button>
+          </div>
+        `
+        : ''
+    }
+
+    ${
+      state.type === 'downloading'
+        ? `
+          <div class="icon">⬇</div>
+          <h1>Downloading update</h1>
+          <p>${total}</p>
+          <div class="progressBox">
+            <div class="bar"><div class="fill"></div></div>
+            <div class="meta">
+              <span>${transferred} of ${total}</span>
+              <b>${percent}%</b>
+            </div>
+          </div>
+        `
+        : ''
+    }
+
+    ${
+      state.type === 'downloaded'
+        ? `
+          <div class="icon">✓</div>
+          <h1>Update downloaded</h1>
+          <p>The update is ready to install.</p>
+          <p>Restart DaWu POS now?</p>
+          <div class="actions">
+            <button class="secondary" onclick="window.close()">Later</button>
+            <button class="primary" onclick="location.href='dawu-update://install'">Restart</button>
+          </div>
+        `
+        : ''
+    }
+
+    ${
+      state.type === 'none'
+        ? `
+          <div class="icon">✓</div>
+          <h1>You are up to date</h1>
+          <p>You are using the latest DaWu POS version.</p>
+        `
+        : ''
+    }
+
+    ${
+      state.type === 'error'
+        ? `
+          <div class="icon">!</div>
+          <h1>Update check failed</h1>
+          <p>${state.message || 'Could not check for updates.'}</p>
+        `
+        : ''
+    }
+  </div>
+</body>
+</html>
+`;
+}
+
+
+function showUpdateWindow(state) {
+  createUpdateWindow();
+  updateWindow.loadURL(
+    'data:text/html;charset=utf-8,' +
+      encodeURIComponent(updateWindowHtml(state)),
+  );
+}
+
+function formatBytes(bytes) {
+  if (!bytes || bytes <= 0) return '';
+
+  const mb = bytes / 1024 / 1024;
+  return `${mb.toFixed(1)} MB`;
+}
+
+function setupAutoUpdater() {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    showUpdateWindow({
+      type: 'checking',
+    });
+  });
+
+  autoUpdater.on('update-available', async (info) => {
+    showUpdateWindow({
+      type: 'available',
+      version: info.version,
+      total: formatBytes(info.files?.[0]?.size),
+    });
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    showUpdateWindow({
+      type: 'none',
+    });
+
+    setTimeout(() => {
+      if (updateWindow && !updateWindow.isDestroyed()) {
+        updateWindow.close();
+      }
+    }, 2200);
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    showUpdateWindow({
+      type: 'downloading',
+      percent: progress.percent,
+      total: formatBytes(progress.total),
+      transferred: formatBytes(progress.transferred),
+    });
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    showUpdateWindow({
+      type: 'downloaded',
+    });
+  });
+
+  autoUpdater.on('error', (error) => {
+    showUpdateWindow({
+      type: 'error',
+      message: error.message,
+    });
+  });
+
+  autoUpdater.checkForUpdates();
+}
 
   waitForServer(startUrl)
     .then(() => {
       mainWindow.loadURL(startUrl);
 
-      if (app.isPackaged) {
-  autoUpdater.checkForUpdatesAndNotify();
-}
+//if (app.isPackaged) {
+ // setupAutoUpdater();
+//}
     })
     .catch((error) => {
       console.log('Failed to start Next server:', error.message);
@@ -122,7 +417,7 @@ function createWindow() {
 
   startKitchenPrinterWatcher();
 
-  // mainWindow.webContents.openDevTools();
+   // mainWindow.webContents.openDevTools();
 }
 
 function ticketHtml(ticket) {
@@ -190,11 +485,11 @@ async function printTicket(ticket) {
   return new Promise((resolve) => {
     const printWindow = new BrowserWindow({
       show: false,
-      webPreferences: {
-        zoomFactor: 1.25,
-        nodeIntegration: false,
-        contextIsolation: true,
-      },
+    webPreferences: {
+  preload: path.join(__dirname, 'preload.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+},
     });
 
     const html = ticketHtml(ticket);
@@ -687,6 +982,20 @@ ipcMain.handle('print-receipt', async (_, data) => {
         });
       }, 500);
     });
+  });
+});
+
+ipcMain.on('download-update', () => {
+  autoUpdater.downloadUpdate();
+});
+
+ipcMain.on('install-update', () => {
+  if (updateWindow && !updateWindow.isDestroyed()) {
+    updateWindow.close();
+  }
+
+  setImmediate(() => {
+    autoUpdater.quitAndInstall(false, true);
   });
 });
 

@@ -1,11 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('admin@dawu.nl');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('dawu_login_email');
+
+    if (savedEmail) {
+      setEmail(savedEmail);
+    }
+  }, []);
 
   async function login() {
     setError('');
@@ -25,7 +33,11 @@ export default function LoginPage() {
 
     const user = await res.json();
 
+    localStorage.setItem('dawu_login_email', email);
+
     sessionStorage.setItem('dawu-user', JSON.stringify(user));
+
+    setPassword('');
 
     window.location.href = '/';
   }
@@ -34,12 +46,17 @@ export default function LoginPage() {
     <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-8">
       <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 p-8">
         <h1 className="text-3xl font-bold mb-2">DaWu Login</h1>
-        <p className="text-zinc-400 mb-8">Staff access only</p>
+
+        <p className="text-zinc-400 mb-8">
+          Staff access only
+        </p>
 
         <div className="space-y-4">
           <input
             className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3"
             placeholder="Email"
+            type="email"
+            autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -48,6 +65,7 @@ export default function LoginPage() {
             className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3"
             placeholder="Password"
             type="password"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />

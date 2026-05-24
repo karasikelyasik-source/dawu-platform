@@ -1,4 +1,5 @@
 import { PrismaClient, KitchenStationType } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
@@ -85,12 +86,25 @@ async function main() {
     },
   });
 
+const hashed = await bcrypt.hash('admin123', 10);
+
+await prisma.user.upsert({
+  where: { email: 'admin@dawu.nl' },
+  update: {},
+  create: {
+    email: 'admin@dawu.nl',
+    password: hashed,
+    role: 'ADMIN',
+  },
+});
+
   await prisma.packageMenuItem.create({
     data: {
       packageId: deluxePackage.id,
       menuItemId: drinkItem.id,
     },
   });
+
 
   console.log('SEED DONE');
 }

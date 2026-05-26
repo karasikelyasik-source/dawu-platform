@@ -24,11 +24,15 @@ export class AuthService {
     };
   }
 
-  async login(data: { email: string; password: string }) {
+  async login(
+    data: { email: string; password: string },
+    sessionData?: {
+      ip?: string | null;
+      userAgent?: string | null;
+    },
+  ) {
     const user = await this.prisma.user.findUnique({
-      where: {
-        email: data.email,
-      },
+      where: { email: data.email },
     });
 
     if (!user) {
@@ -40,6 +44,25 @@ export class AuthService {
     if (!isValid) {
       throw new UnauthorizedException('Invalid email or password');
     }
+
+    const bannedIp = sessionData?.ip
+      ? await this.prisma.bannedIp.findUnique({
+          where: { ip: sessionData.ip },
+        })
+      : null;
+
+    if (bannedIp) {
+      throw new UnauthorizedException('IP banned');
+    }
+
+    await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        ip: sessionData?.ip || null,
+        userAgent: sessionData?.userAgent || null,
+        online: true,
+      },
+    });
 
     return {
       id: user.id,

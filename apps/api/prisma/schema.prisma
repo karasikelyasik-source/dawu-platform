@@ -265,6 +265,8 @@ model User {
 
   role UserRole @default(STAFF)
 
+  sessions Session[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -327,6 +329,30 @@ model Payment {
   paid      Float?
   change    Float?
   tip       Float @default(0)
+
+  createdAt DateTime @default(now())
+}
+model Session {
+  id String @id @default(cuid())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  ip String?
+  userAgent String?
+
+  online Boolean @default(true)
+  banned Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+}
+
+model BannedIp {
+  id String @id @default(cuid())
+
+  ip String @unique
+  reason String?
 
   createdAt DateTime @default(now())
 }

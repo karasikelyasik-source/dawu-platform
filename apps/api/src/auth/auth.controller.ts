@@ -1,4 +1,5 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -11,7 +12,17 @@ export class AuthController {
   }
 
   @Post('login')
-  login(@Body() body: any) {
-    return this.authService.login(body);
+  login(@Body() body: any, @Req() req: Request) {
+    const ip =
+      req.headers['x-forwarded-for']?.toString().split(',')[0] ||
+      req.socket.remoteAddress ||
+      null;
+
+    const userAgent = req.headers['user-agent'] || null;
+
+    return this.authService.login(body, {
+      ip,
+      userAgent,
+    });
   }
 }

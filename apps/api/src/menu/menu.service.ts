@@ -47,11 +47,17 @@ export class MenuService {
     },
   });
 }
-  deleteItem(id: string) {
-    return this.prisma.menuItem.delete({
-      where: { id },
-    });
-  }
+ async deleteItem(id: string) {
+  await this.prisma.packageMenuItem.deleteMany({
+    where: {
+      menuItemId: id,
+    },
+  });
+
+  return this.prisma.menuItem.delete({
+    where: { id },
+  });
+}
 
   findPackages() {
     return this.prisma.package.findMany({

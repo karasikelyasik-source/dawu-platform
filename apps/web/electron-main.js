@@ -93,11 +93,10 @@ function createWindow() {
     height: 900,
     title: 'DaWu POS',
     autoHideMenuBar: true,
-   webPreferences: {
+  webPreferences: {
   preload: path.join(__dirname, 'preload.js'),
   contextIsolation: true,
   nodeIntegration: false,
-  partition: 'nopersist',
 },
   });
 
@@ -121,10 +120,11 @@ function createUpdateWindow() {
     autoHideMenuBar: true,
     parent: mainWindow,
     modal: false,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-    },
+ webPreferences: {
+  preload: path.join(__dirname, 'preload.js'),
+  contextIsolation: true,
+  nodeIntegration: false,
+},
   });
 
   updateWindow.on('closed', () => {
@@ -258,7 +258,7 @@ function updateWindowHtml(state) {
           <p>Do you want to download the update now?</p>
           <div class="actions">
             <button class="secondary" onclick="window.close()">Later</button>
-          <button class="primary" onclick="window.postMessage('install-update', '*')">Restart</button>
+          <button class="primary" onclick="window.dawu.downloadUpdate()">Download</button>
           </div>
         `
         : ''
@@ -290,7 +290,7 @@ function updateWindowHtml(state) {
           <p>Restart DaWu POS now?</p>
           <div class="actions">
             <button class="secondary" onclick="window.close()">Later</button>
-            <button class="primary" onclick="location.href='dawu-update://install'">Restart</button>
+           <button class="primary" onclick="window.dawu.installUpdate()">Restart</button>
           </div>
         `
         : ''
@@ -400,9 +400,9 @@ function setupAutoUpdater() {
     .then(() => {
       mainWindow.loadURL(startUrl);
 
-//if (app.isPackaged) {
- // setupAutoUpdater();
-//}
+if (app.isPackaged) {
+  setupAutoUpdater();
+}
     })
     .catch((error) => {
       console.log('Failed to start Next server:', error.message);
@@ -415,7 +415,7 @@ function setupAutoUpdater() {
       );
     });
 
-  startKitchenPrinterWatcher();
+  //startKitchenPrinterWatcher();
 
    // mainWindow.webContents.openDevTools();
 }
@@ -485,7 +485,7 @@ async function printTicket(ticket) {
   return new Promise((resolve) => {
     const printWindow = new BrowserWindow({
       show: false,
-    webPreferences: {
+   webPreferences: {
   preload: path.join(__dirname, 'preload.js'),
   contextIsolation: true,
   nodeIntegration: false,
@@ -994,9 +994,11 @@ ipcMain.on('install-update', () => {
     updateWindow.close();
   }
 
-  setImmediate(() => {
+  app.removeAllListeners('window-all-closed');
+
+  setTimeout(() => {
     autoUpdater.quitAndInstall(false, true);
-  });
+  }, 300);
 });
 
 app.whenReady().then(() => {

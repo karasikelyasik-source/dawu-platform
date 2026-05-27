@@ -24,14 +24,33 @@ export default function SessionsPage() {
 
   async function loadSessions() {
     const res = await fetch(`${API}/admin-sessions`);
-const data = await res.json();
+    const data = await res.json();
 
-if (Array.isArray(data)) {
-  setSessions(data);
-} else {
-  console.log('Sessions API returned:', data);
-  setSessions([]);
-}
+    if (Array.isArray(data)) {
+      setSessions(data);
+    } else {
+      setSessions([]);
+    }
+  }
+
+  async function banEmail(email: string) {
+    await fetch(`${API}/admin-sessions/ban-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    loadSessions();
+  }
+
+  async function unbanEmail(email: string) {
+    await fetch(`${API}/admin-sessions/unban-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    loadSessions();
   }
 
   async function banIp(ip: string | null) {
@@ -146,6 +165,20 @@ if (Array.isArray(data)) {
                   className="rounded-xl bg-yellow-500/10 border border-yellow-500/30 px-4 py-2 text-yellow-400"
                 >
                   Make {session.user.role === 'ADMIN' ? 'STAFF' : 'ADMIN'}
+                </button>
+
+                <button
+                  onClick={() => banEmail(session.user.email)}
+                  className="rounded-xl bg-red-500/10 border border-red-500/30 px-4 py-2 text-red-400"
+                >
+                  Ban Email
+                </button>
+
+                <button
+                  onClick={() => unbanEmail(session.user.email)}
+                  className="rounded-xl bg-green-500/10 border border-green-500/30 px-4 py-2 text-green-400"
+                >
+                  Unban Email
                 </button>
 
                 {session.banned ? (

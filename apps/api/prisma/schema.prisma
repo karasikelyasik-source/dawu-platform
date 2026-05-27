@@ -352,15 +352,20 @@ model BannedIp {
   id String @id @default(cuid())
 
   ip String @unique
+
   reason String?
+  expiresAt DateTime?
 
   createdAt DateTime @default(now())
 }
+
 model BannedEmail {
   id String @id @default(cuid())
 
   email String @unique
+
   reason String?
+  expiresAt DateTime?
 
   createdAt DateTime @default(now())
 }

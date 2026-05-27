@@ -35,6 +35,19 @@ unbanEmail(@Body() body: { email: string }) {
   return this.service.unbanEmail(body.email);
 }
 
+@Post('ban')
+ban(
+  @Body()
+  body: {
+    type: 'EMAIL' | 'IP';
+    value: string;
+    reason?: string;
+    expiresAt?: string | null;
+  },
+) {
+  return this.service.ban(body);
+}
+
   @Patch(':id/kick')
   kickSession(@Param('id') id: string) {
     return this.service.kickSession(id);

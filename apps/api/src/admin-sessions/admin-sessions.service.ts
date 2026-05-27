@@ -5,12 +5,11 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AdminSessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
-
-findOne(id: string) {
-  return this.prisma.session.findUnique({
-    where: { id },
-  });
-}
+  findOne(id: string) {
+    return this.prisma.session.findUnique({
+      where: { id },
+    });
+  }
 
   findAll() {
     return this.prisma.session.findMany({
@@ -29,59 +28,90 @@ findOne(id: string) {
     });
   }
 
-  async banIp(ip: string) {
-    await this.prisma.bannedIp.upsert({
-      where: { ip },
-      update: {},
+  async ban(data: {
+    type: 'EMAIL' | 'IP';
+    value: string;
+    reason?: string;
+    expiresAt?: string | null;
+  }) {
+    const expiresAt = data.expiresAt ? new Date(data.expiresAt) : null;
+
+    if (data.type === 'EMAIL') {
+      const banned = await this.prisma.bannedEmail.upsert({
+        where: { email: data.value },
+        update: {
+          reason: data.reason || null,
+          expiresAt,
+        },
+        create: {
+          email: data.value,
+          reason: data.reason || null,
+          expiresAt,
+        },
+      });
+
+      const user = await this.prisma.user.findUnique({
+        where: { email: data.value },
+      });
+
+      if (user) {
+        await this.prisma.session.updateMany({
+          where: { userId: user.id },
+          data: {
+            banned: true,
+            online: false,
+          },
+        });
+      }
+
+      return banned;
+    }
+
+    const banned = await this.prisma.bannedIp.upsert({
+      where: { ip: data.value },
+      update: {
+        reason: data.reason || null,
+        expiresAt,
+      },
       create: {
-        ip,
-        reason: 'Banned from admin panel',
+        ip: data.value,
+        reason: data.reason || null,
+        expiresAt,
       },
     });
 
     await this.prisma.session.updateMany({
-      where: { ip },
+      where: { ip: data.value },
       data: {
         banned: true,
         online: false,
       },
     });
 
-    return { success: true };
+    return banned;
   }
 
-async banEmail(email: string) {
-  const banned = await this.prisma.bannedEmail.upsert({
-    where: { email },
-    update: {},
-    create: {
-      email,
+  async banIp(ip: string) {
+    return this.ban({
+      type: 'IP',
+      value: ip,
       reason: 'Banned from admin panel',
-    },
-  });
-
-  const user = await this.prisma.user.findUnique({
-    where: { email },
-  });
-
-  if (user) {
-    await this.prisma.session.updateMany({
-      where: { userId: user.id },
-      data: {
-        banned: true,
-        online: false,
-      },
     });
   }
 
-  return banned;
-}
+  async banEmail(email: string) {
+    return this.ban({
+      type: 'EMAIL',
+      value: email,
+      reason: 'Banned from admin panel',
+    });
+  }
 
-async unbanEmail(email: string) {
-  return this.prisma.bannedEmail.deleteMany({
-    where: { email },
-  });
-}
+  async unbanEmail(email: string) {
+    return this.prisma.bannedEmail.deleteMany({
+      where: { email },
+    });
+  }
 
   async unbanIp(ip: string) {
     await this.prisma.bannedIp.deleteMany({
@@ -106,12 +136,11 @@ async unbanEmail(email: string) {
       },
     });
   }
-  
+
   changeRole(userId: string, role: 'ADMIN' | 'STAFF') {
     return this.prisma.user.update({
       where: { id: userId },
       data: { role },
     });
- 
   }
 }

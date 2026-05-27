@@ -10,6 +10,11 @@ export class AdminSessionsController {
     return this.service.findAll();
   }
 
+@Get(':id')
+findOne(@Param('id') id: string) {
+  return this.service.findOne(id);
+}
+
   @Post('ban-ip')
   banIp(@Body() body: { ip: string }) {
     return this.service.banIp(body.ip);

@@ -55,19 +55,20 @@ export class AuthService {
       throw new UnauthorizedException('IP banned');
     }
 
-    await this.prisma.session.create({
-      data: {
-        userId: user.id,
-        ip: sessionData?.ip || null,
-        userAgent: sessionData?.userAgent || null,
-        online: true,
-      },
-    });
+const session = await this.prisma.session.create({
+  data: {
+    userId: user.id,
+    ip: sessionData?.ip || null,
+    userAgent: sessionData?.userAgent || null,
+    online: true,
+  },
+});
 
     return {
       id: user.id,
       email: user.email,
       role: user.role,
+      sessionId: session.id,
     };
   }
 }

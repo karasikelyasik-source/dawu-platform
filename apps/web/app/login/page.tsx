@@ -37,6 +37,8 @@ export default function LoginPage() {
 
     sessionStorage.setItem('dawu-user', JSON.stringify(user));
 
+sessionStorage.setItem('dawu-user', JSON.stringify(user));
+
     setPassword('');
 
     window.location.href = '/';

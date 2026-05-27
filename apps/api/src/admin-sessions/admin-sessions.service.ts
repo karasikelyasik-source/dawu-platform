@@ -5,6 +5,13 @@ import { PrismaService } from '../prisma/prisma.service';
 export class AdminSessionsService {
   constructor(private readonly prisma: PrismaService) {}
 
+
+findOne(id: string) {
+  return this.prisma.session.findUnique({
+    where: { id },
+  });
+}
+
   findAll() {
     return this.prisma.session.findMany({
       include: {
@@ -66,7 +73,7 @@ export class AdminSessionsService {
       },
     });
   }
-
+  
   changeRole(userId: string, role: 'ADMIN' | 'STAFF') {
     return this.prisma.user.update({
       where: { id: userId },

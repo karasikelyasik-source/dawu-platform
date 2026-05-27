@@ -14,7 +14,7 @@ export class AdminSessionsController {
 findOne(@Param('id') id: string) {
   return this.service.findOne(id);
 }
-
+  
   @Post('ban-ip')
   banIp(@Body() body: { ip: string }) {
     return this.service.banIp(body.ip);
@@ -24,6 +24,16 @@ findOne(@Param('id') id: string) {
   unbanIp(@Body() body: { ip: string }) {
     return this.service.unbanIp(body.ip);
   }
+
+@Post('ban-email')
+banEmail(@Body() body: { email: string }) {
+  return this.service.banEmail(body.email);
+}
+
+@Post('unban-email')
+unbanEmail(@Body() body: { email: string }) {
+  return this.service.unbanEmail(body.email);
+}
 
   @Patch(':id/kick')
   kickSession(@Param('id') id: string) {

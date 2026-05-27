@@ -356,3 +356,11 @@ model BannedIp {
 
   createdAt DateTime @default(now())
 }
+model BannedEmail {
+  id String @id @default(cuid())
+
+  email String @unique
+  reason String?
+
+  createdAt DateTime @default(now())
+}

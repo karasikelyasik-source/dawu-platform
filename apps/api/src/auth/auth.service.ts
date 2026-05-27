@@ -45,6 +45,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password');
     }
 
+    const bannedEmail = await this.prisma.bannedEmail.findUnique({
+      where: {
+        email: user.email,
+      },
+    });
+
+    if (bannedEmail) {
+      throw new UnauthorizedException('Email banned');
+    }
+
     const bannedIp = sessionData?.ip
       ? await this.prisma.bannedIp.findUnique({
           where: { ip: sessionData.ip },
@@ -55,14 +65,14 @@ export class AuthService {
       throw new UnauthorizedException('IP banned');
     }
 
-const session = await this.prisma.session.create({
-  data: {
-    userId: user.id,
-    ip: sessionData?.ip || null,
-    userAgent: sessionData?.userAgent || null,
-    online: true,
-  },
-});
+    const session = await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        ip: sessionData?.ip || null,
+        userAgent: sessionData?.userAgent || null,
+        online: true,
+      },
+    });
 
     return {
       id: user.id,

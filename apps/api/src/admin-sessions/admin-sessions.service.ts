@@ -50,6 +50,39 @@ findOne(id: string) {
     return { success: true };
   }
 
+async banEmail(email: string) {
+  const banned = await this.prisma.bannedEmail.upsert({
+    where: { email },
+    update: {},
+    create: {
+      email,
+      reason: 'Banned from admin panel',
+    },
+  });
+
+  const user = await this.prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (user) {
+    await this.prisma.session.updateMany({
+      where: { userId: user.id },
+      data: {
+        banned: true,
+        online: false,
+      },
+    });
+  }
+
+  return banned;
+}
+
+async unbanEmail(email: string) {
+  return this.prisma.bannedEmail.deleteMany({
+    where: { email },
+  });
+}
+
   async unbanIp(ip: string) {
     await this.prisma.bannedIp.deleteMany({
       where: { ip },
@@ -79,5 +112,6 @@ findOne(id: string) {
       where: { id: userId },
       data: { role },
     });
+ 
   }
 }

@@ -36,13 +36,26 @@ type OrderItem = {
   btwRate?: number;
 };
 
-declare global {
-  interface Window {
-    dawu?: {
-      printReceipt: (data: any) => Promise<any>;
-    };
-  }
-}
+type PaymentItem = {
+  id: string;
+  tableId: string;
+  method: string;
+  total: number;
+  paid?: number;
+  change?: number;
+  tip?: number;
+  createdAt: string;
+};
+
+const tableNames = [
+  'A1', 'A2', 'A3', 'A4', 'A5',
+  'A6', 'A7', 'A8', 'A9', 'A10',
+  'B1', 'B2', 'B3', 'B4', 'B5', 'B6',
+  'A15', 'A16', 'A17', 'A18',
+  'C1', 'C2', 'C3', 'C4', 'C5', 'C6',
+  'C7', 'C8', 'C9', 'C9a', 'C10', 'C10a',
+  'C15', 'C16', 'C17', 'C18', 'C19',
+];
 
 export default function TablePage() {
   const params = useParams();
@@ -51,20 +64,25 @@ export default function TablePage() {
   const [table, setTable] = useState<Table | null>(null);
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [orders, setOrders] = useState<OrderItem[]>([]);
+  const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [paidAmount, setPaidAmount] = useState('');
+  const [tipAmount, setTipAmount] = useState('');
 
   async function loadTable() {
     const res = await fetch(`http://31.57.201.45:3000/tables/${tableId}`);
     const data = await res.json();
+
     setTable(data);
   }
 
   async function loadMenu() {
     const res = await fetch('http://31.57.201.45:3000/menu');
     const data = await res.json();
+
     const items = data.flatMap((category: any) => category.items || []);
+
     setMenu(items);
   }
 
@@ -81,6 +99,17 @@ export default function TablePage() {
         createdAt: new Date(item.createdAt).toLocaleTimeString(),
       })),
     );
+  }
+
+  async function loadPayments() {
+    const res = await fetch('http://31.57.201.45:3000/tables/payments/all');
+    const data = await res.json();
+
+    const tablePayments = Array.isArray(data)
+      ? data.filter((payment: PaymentItem) => payment.tableId === tableId)
+      : [];
+
+    setPayments(tablePayments);
   }
 
   async function updateTableStatus(
@@ -123,33 +152,24 @@ export default function TablePage() {
     });
 
     setOrders([]);
+    setPayments([]);
+    await loadPayments();
     setTable(null);
 
     await loadTable();
+    await loadPayments();
   }
 
-  async function closeTableAndPrintCheck() {
-    const printerRes = await fetch('http://31.57.201.45:3000/menu/receipt-printer');
-    const receiptPrinter = await printerRes.json();
-
-await window.dawu?.printReceipt({
-  tableNumber: table?.number,
-  selectedPackages,
-  orders,
-  paymentMethod,
-  paid,
-  change,
-  receiptPrinter: receiptPrinter?.printerIp,
-});
-
-    await updateTableStatus('CLEANING');
+  function startTransfer() {
+    sessionStorage.setItem('dawu-transfer-from-table-id', tableId);
+    window.location.href = '/';
   }
 
-  useEffect(() => {
-    loadTable();
-    loadMenu();
-    loadOrders();
-  }, []);
+  function getTableName(table?: Table | null) {
+    if (!table) return '';
+
+    return tableNames[table.number - 1] || String(table.number);
+  }
 
   const selectedPackages = Array.isArray(table?.selectedPackages)
     ? table.selectedPackages
@@ -166,32 +186,88 @@ await window.dawu?.printReceipt({
   );
 
   const total = packageTotal + ordersTotal;
-  const paid = Number(paidAmount || 0);
-const change = paymentMethod === 'CASH' ? Math.max(0, paid - total) : 0;
-const tip = Math.max(0, paid - total);
 
+  const paidAlready = payments.reduce(
+    (sum, payment) => sum + Number(payment.total || 0),
+    0,
+  );
 
-async function confirmPayment() {
-  await fetch(`http://31.57.201.45:3000/tables/${tableId}/pay`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      tableNumber: table?.number,
-      method: paymentMethod,
-      total,
-      paid: paid || total,
-change: paymentMethod === 'CASH' ? change : 0,
-tip,
-    }),
+  const remaining = Math.max(0, total - paidAlready);
+
+const paid = Number(paidAmount || 0);
+const tip = Number(tipAmount || 0);
+
+const paymentInput = paid || remaining;
+const amountToApply = Math.min(paymentInput, remaining);
+
+const change =
+  paymentMethod === 'CASH'
+    ? Math.max(0, paid - remaining - tip)
+    : 0;
+
+  async function closeTableAndPrintCheck() {
+    const printerRes = await fetch('http://31.57.201.45:3000/menu/receipt-printer');
+    const receiptPrinter = await printerRes.json();
+
+    await window.dawu?.printReceipt({
+      tableNumber: getTableName(table),
+      selectedPackages,
+      orders,
+      paymentMethod,
+      paid: total,
+      change: 0,
+      receiptPrinter: receiptPrinter?.printerIp,
+    });
+
+    await updateTableStatus('CLEANING');
+  }
+
+async function printReceiptAgain() {
+  const printerRes = await fetch('http://31.57.201.45:3000/menu/receipt-printer');
+  const receiptPrinter = await printerRes.json();
+
+  await window.dawu?.printReceipt({
+    tableNumber: getTableName(table),
+    selectedPackages,
+    orders,
+    paymentMethod,
+    paid: paidAlready,
+    change: 0,
+    payments,
+    receiptPrinter: receiptPrinter?.printerIp,
   });
-
-  await closeTableAndPrintCheck();
-
-  setPaymentOpen(false);
-  setPaidAmount('');
 }
+
+  async function confirmPayment() {
+    if (remaining <= 0 || amountToApply <= 0) return;
+
+    await fetch(`http://31.57.201.45:3000/tables/${tableId}/pay`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tableNumber: table?.number,
+        method: paymentMethod,
+        total: amountToApply,
+        paid: paymentMethod === 'CASH' ? paymentInput : amountToApply,
+        change: paymentMethod === 'CASH' ? change : 0,
+        tip,
+      }),
+    });
+
+    await loadPayments();
+
+    const newRemaining = Math.max(0, remaining - amountToApply);
+
+    if (newRemaining <= 0.01) {
+      await closeTableAndPrintCheck();
+    }
+
+    setPaymentOpen(false);
+    setPaidAmount('');
+    setTipAmount('');
+  }
 
   function calculateBtw(rate: number) {
     const packageBtw = selectedPackages
@@ -214,6 +290,13 @@ tip,
   const btw9 = calculateBtw(9);
   const btw21 = calculateBtw(21);
 
+  useEffect(() => {
+    loadTable();
+    loadMenu();
+    loadOrders();
+    loadPayments();
+  }, []);
+
   return (
     <main className="min-h-screen bg-zinc-950 text-white p-8">
       <div className="max-w-7xl mx-auto">
@@ -222,7 +305,7 @@ tip,
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">
-              Table {table?.number ?? ''}
+              Table {getTableName(table)}
             </h1>
 
             <p className="text-zinc-400">
@@ -234,10 +317,10 @@ tip,
                 table?.status === 'AVAILABLE'
                   ? 'text-green-400'
                   : table?.status === 'OCCUPIED'
-                  ? 'text-red-400'
-                  : table?.status === 'CLEANING'
-                  ? 'text-yellow-400'
-                  : 'text-blue-400'
+                    ? 'text-red-400'
+                    : table?.status === 'CLEANING'
+                      ? 'text-yellow-400'
+                      : 'text-blue-400'
               }`}
             >
               Status: {table?.status}
@@ -270,6 +353,13 @@ tip,
           </div>
 
           <div className="flex gap-2">
+            <button
+              onClick={startTransfer}
+              className="rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-2 text-purple-400"
+            >
+              Transfer
+            </button>
+
             <button
               onClick={() => {
                 window.location.href = `/tables/${tableId}/start`;
@@ -428,6 +518,16 @@ tip,
                 </div>
               )}
 
+              <div className="flex items-center justify-between text-blue-400">
+                <span>Paid already</span>
+                <span>€{paidAlready.toFixed(2)}</span>
+              </div>
+
+              <div className="flex items-center justify-between text-yellow-400">
+                <span>Remaining</span>
+                <span>€{remaining.toFixed(2)}</span>
+              </div>
+
               <div className="flex items-center justify-between border-t border-zinc-800 pt-4">
                 <div className="text-xl font-bold">Total</div>
 
@@ -437,98 +537,175 @@ tip,
               </div>
             </div>
 
-           <button
-  onClick={() => setPaymentOpen(true)}
-  disabled={total === 0}
-  className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
->
-  Pay / Print
-</button>
+{remaining > 0 ? (
+  <button
+    onClick={() => setPaymentOpen(true)}
+    disabled={total === 0}
+    className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
+  >
+    Pay / Partial Pay
+  </button>
+) : (
+  <div className="mt-6 space-y-3">
+    <button
+      disabled
+      className="w-full rounded-xl bg-green-500 px-4 py-3 font-bold text-black"
+    >
+      ✓ Fully Paid
+    </button>
+
+    <button
+      onClick={printReceiptAgain}
+      className="w-full rounded-xl border border-white/10 bg-zinc-800 px-4 py-3 font-bold text-white hover:bg-zinc-700"
+    >
+      🖨 Print Receipt Again
+    </button>
+  </div>
+)}
           </div>
         </div>
       </div>
 
-{paymentOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-    <div className="w-full max-w-md rounded-3xl bg-zinc-900 border border-zinc-800 p-6">
-      <h2 className="text-2xl font-bold mb-6">
-        Payment
-      </h2>
+{payments.length > 0 && (
+  <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4">
+    <h3 className="mb-3 text-lg font-bold">
+      Payment History
+    </h3>
 
-      <div className="mb-6">
-        <div className="text-zinc-400 mb-2">
-          Payment Method
+    <div className="space-y-2">
+      {payments.map((payment) => (
+        <div
+          key={payment.id}
+          className="flex items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-sm"
+        >
+          <div>
+            <div className="font-bold">
+              {payment.method === 'CARD' ? 'Card / PIN' : 'Cash'}
+            </div>
+
+            <div className="text-xs text-zinc-500">
+              {new Date(payment.createdAt).toLocaleString()}
+            </div>
+
+            {(payment.tip || 0) > 0 && (
+              <div className="text-xs text-yellow-400">
+                Tip: €{Number(payment.tip || 0).toFixed(2)}
+              </div>
+            )}
+
+            {(payment.change || 0) > 0 && (
+              <div className="text-xs text-green-400">
+                Change: €{Number(payment.change || 0).toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          <div className="text-lg font-black text-blue-400">
+            €{Number(payment.total || 0).toFixed(2)}
+          </div>
         </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => setPaymentMethod('CASH')}
-            className={`rounded-xl px-4 py-3 font-bold border ${
-              paymentMethod === 'CASH'
-                ? 'bg-green-500 text-black border-green-400'
-                : 'bg-zinc-950 border-zinc-800 text-white'
-            }`}
-          >
-            Cash
-          </button>
-
-          <button
-            onClick={() => setPaymentMethod('CARD')}
-            className={`rounded-xl px-4 py-3 font-bold border ${
-              paymentMethod === 'CARD'
-                ? 'bg-blue-500 text-black border-blue-400'
-                : 'bg-zinc-950 border-zinc-800 text-white'
-            }`}
-          >
-            Card / PIN
-          </button>
-        </div>
-      </div>
-
-      <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-4 mb-6">
-        <div className="flex items-center justify-between text-zinc-400 mb-2">
-          <span>Total</span>
-
-          <span>€{total.toFixed(2)}</span>
-        </div>
-
-       <>
-  <input
-    type="number"
-    placeholder="Customer paid..."
-    value={paidAmount}
-    onChange={(e) => setPaidAmount(e.target.value)}
-    className="mt-4 w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3"
-  />
-
-  {paymentMethod === 'CASH' && (
-    <div className="mt-4 flex items-center justify-between text-lg">
-      <span className="font-bold">
-        Change
-      </span>
-
-      <span className="font-bold text-green-400">
-        €{change.toFixed(2)}
-      </span>
+      ))}
     </div>
-  )}
+  </div>
+)}
 
-  {paymentMethod === 'CARD' && (
-    <div className="mt-4 flex items-center justify-between text-lg">
-      <span className="font-bold">
-        Paid by PIN
-      </span>
+      {paymentOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-zinc-900 border border-zinc-800 p-6">
+            <h2 className="text-2xl font-bold mb-6">
+              Payment
+            </h2>
 
-      <span className="font-bold text-blue-400">
-        €{(paid || total).toFixed(2)}
-      </span>
-    </div>
-  )}
+            <div className="mb-6">
+              <div className="text-zinc-400 mb-2">
+                Payment Method
+              </div>
 
-  {tip > 0 && (
-  <div className="mt-3 flex items-center justify-between text-lg">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setPaymentMethod('CASH')}
+                  className={`rounded-xl px-4 py-3 font-bold border ${
+                    paymentMethod === 'CASH'
+                      ? 'bg-green-500 text-black border-green-400'
+                      : 'bg-zinc-950 border-zinc-800 text-white'
+                  }`}
+                >
+                  Cash
+                </button>
+
+                <button
+                  onClick={() => setPaymentMethod('CARD')}
+                  className={`rounded-xl px-4 py-3 font-bold border ${
+                    paymentMethod === 'CARD'
+                      ? 'bg-blue-500 text-black border-blue-400'
+                      : 'bg-zinc-950 border-zinc-800 text-white'
+                  }`}
+                >
+                  Card / PIN
+                </button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-zinc-950 border border-zinc-800 p-4 mb-6">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-zinc-400">
+                  <span>Total</span>
+                  <span>€{total.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-blue-400">
+                  <span>Paid already</span>
+                  <span>€{paidAlready.toFixed(2)}</span>
+                </div>
+
+                <div className="flex items-center justify-between text-yellow-400 text-lg font-bold">
+                  <span>Remaining</span>
+                  <span>€{remaining.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <input
+                type="number"
+                placeholder={`Pay amount, remaining €${remaining.toFixed(2)}`}
+                value={paidAmount}
+                onChange={(e) => setPaidAmount(e.target.value)}
+                className="mt-4 w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3"
+              />
+<input
+  type="number"
+  placeholder="Tip amount..."
+  value={tipAmount}
+  onChange={(e) => setTipAmount(e.target.value)}
+  className="mt-3 w-full rounded-xl bg-zinc-900 border border-zinc-800 px-4 py-3"
+/>
+
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setPaidAmount((remaining / 2).toFixed(2))}
+                  className="rounded-xl bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300"
+                >
+                  1/2
+                </button>
+
+                <button
+                  onClick={() => setPaidAmount((remaining / 3).toFixed(2))}
+                  className="rounded-xl bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm font-bold text-zinc-300"
+                >
+                  1/3
+                </button>
+
+                <button
+                  onClick={() => setPaidAmount(remaining.toFixed(2))}
+                  className="rounded-xl bg-white px-3 py-2 text-sm font-bold text-black"
+                >
+                  Full
+                </button>
+              </div>
+
+{tip > 0 && (
+  <div className="mt-4 flex items-center justify-between text-lg">
     <span className="font-bold">
-      Tips
+      Tip
     </span>
 
     <span className="font-bold text-yellow-400">
@@ -536,28 +713,47 @@ tip,
     </span>
   </div>
 )}
-</>
-      </div>
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => setPaymentOpen(false)}
-          className="flex-1 rounded-xl bg-zinc-800 px-4 py-3 font-bold"
-        >
-          Cancel
-        </button>
+              {paymentMethod === 'CASH' && (
+                <div className="mt-4 flex items-center justify-between text-lg">
+                  <span className="font-bold">Change</span>
 
-        <button
-          onClick={confirmPayment}
-          className="flex-1 rounded-xl bg-white px-4 py-3 font-bold text-black"
-        >
-          Confirm Payment
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                  <span className="font-bold text-green-400">
+                    €{change.toFixed(2)}
+                  </span>
+                </div>
+              )}
 
+              {paymentMethod === 'CARD' && (
+                <div className="mt-4 flex items-center justify-between text-lg">
+                  <span className="font-bold">Paid by PIN</span>
+
+                  <span className="font-bold text-blue-400">
+                    €{amountToApply.toFixed(2)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPaymentOpen(false)}
+                className="flex-1 rounded-xl bg-zinc-800 px-4 py-3 font-bold"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={confirmPayment}
+                disabled={remaining <= 0 || amountToApply <= 0}
+                className="flex-1 rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
+              >
+                Confirm Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

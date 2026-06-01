@@ -39,11 +39,15 @@ export default function TableOrderPage() {
   async function loadData() {
     const tablesRes = await fetch('http://31.57.201.45:3000/tables');
     const tables = await tablesRes.json();
-
+console.log('TABLES FROM API:', tables);
+console.log('REQUESTED TABLE:', tableName);
     const index = tableNames.indexOf(tableName);
-    const foundTable = tables[index];
 
-    setTable(foundTable || null);
+const foundTable = Array.isArray(tables)
+  ? tables.find((table: any) => table.number === index + 1)
+  : null;
+
+setTable(foundTable || null);
 
     const menuRes = await fetch('http://31.57.201.45:3000/menu');
     const categories = await menuRes.json();
@@ -110,12 +114,14 @@ export default function TableOrderPage() {
   }, []);
 
   if (!table) {
-    return (
-      <main className="min-h-screen bg-zinc-950 p-6 text-white">
-        Table not found
-      </main>
-    );
-  }
+  return (
+    <main className="min-h-screen bg-zinc-950 p-6 text-white">
+      <div>Table not found</div>
+      <div>Requested: {tableName}</div>
+      <div>Tables loaded: {menu.length}</div>
+    </main>
+  );
+}
 
   return (
     <main className="min-h-screen bg-zinc-950 p-4 text-white">

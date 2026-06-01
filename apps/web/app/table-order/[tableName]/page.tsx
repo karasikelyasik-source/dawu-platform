@@ -26,6 +26,8 @@ const tableNames = [
   'C7', 'C8', 'C9', 'C9a', 'C10', 'C10a',
   'C15', 'C16', 'C17', 'C18', 'C19',
 ];
+const API_URL = 'http://31.57.201.45:3000';
+
 
 export default function TableOrderPage() {
   const params = useParams();
@@ -37,7 +39,7 @@ export default function TableOrderPage() {
   const [message, setMessage] = useState('');
 
   async function loadData() {
-    const tablesRes = await fetch('http://31.57.201.45:3000/tables');
+    const tablesRes = await fetch(`${API_URL}/tables`);
     const tables = await tablesRes.json();
 
     const index = tableNames.indexOf(tableName);
@@ -45,7 +47,7 @@ export default function TableOrderPage() {
 
     setTable(foundTable || null);
 
-    const menuRes = await fetch('http://31.57.201.45:3000/menu');
+    const menuRes = await fetch(`${API_URL}/menu`);
     const categories = await menuRes.json();
 
     const items = Array.isArray(categories)
@@ -66,7 +68,7 @@ export default function TableOrderPage() {
     setMessage('Sending order...');
 
     for (const item of cart) {
-      await fetch(`http://31.57.201.45:3000/tables/${table.id}/order-logs`, {
+      await fetch(`${API_URL}/tables/${table.id}/order-logs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -89,7 +91,7 @@ export default function TableOrderPage() {
         ? '🔔 Customer calls waiter'
         : '💳 Customer asks for bill';
 
-    await fetch(`http://31.57.201.45:3000/tables/${table.id}/order-logs`, {
+    await fetch(`${API_URL}/tables/${table.id}/order-logs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

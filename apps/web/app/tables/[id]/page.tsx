@@ -205,6 +205,15 @@ const change =
     ? Math.max(0, paid - remaining - tip)
     : 0;
 
+const hasPackages =
+  (selectedPackages?.length || 0) > 0;
+
+const hasOrders =
+  (orders?.length || 0) > 0;
+
+const hasAnything =
+  hasPackages || hasOrders;
+
   async function closeTableAndPrintCheck() {
     const printerRes = await fetch('http://31.57.201.45:3000/menu/receipt-printer');
     const receiptPrinter = await printerRes.json();
@@ -359,6 +368,21 @@ async function printReceiptAgain() {
             >
               Transfer
             </button>
+
+
+<button
+  onClick={() => {
+    sessionStorage.setItem(
+      'dawu-merge-from-table-id',
+      tableId,
+    );
+
+    window.location.href = '/tables-dashboard';
+  }}
+  className="rounded-xl bg-blue-500/10 border border-blue-500/30 px-4 py-2 text-blue-400"
+>
+  Merge
+</button>
 
             <button
               onClick={() => {
@@ -537,11 +561,24 @@ async function printReceiptAgain() {
               </div>
             </div>
 
-{remaining > 0 ? (
+{!hasAnything ? (
+  <button
+    disabled
+    className="mt-6 w-full rounded-xl bg-zinc-800 px-4 py-3 font-bold text-zinc-500"
+  >
+    No items ordered
+  </button>
+) : total <= 0 ? (
   <button
     onClick={() => setPaymentOpen(true)}
-    disabled={total === 0}
-    className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
+    className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-bold text-black"
+  >
+    Pay / Print
+  </button>
+) : remaining > 0 ? (
+  <button
+    onClick={() => setPaymentOpen(true)}
+    className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-bold text-black"
   >
     Pay / Partial Pay
   </button>
@@ -556,7 +593,7 @@ async function printReceiptAgain() {
 
     <button
       onClick={printReceiptAgain}
-      className="w-full rounded-xl border border-white/10 bg-zinc-800 px-4 py-3 font-bold text-white hover:bg-zinc-700"
+      className="w-full rounded-xl border border-white/10 bg-zinc-800 px-4 py-3 font-bold text-white"
     >
       🖨 Print Receipt Again
     </button>

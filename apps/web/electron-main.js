@@ -417,7 +417,7 @@ if (app.isPackaged) {
       );
     });
 
-  //startKitchenPrinterWatcher();
+  startKitchenPrinterWatcher();
 
    // mainWindow.webContents.openDevTools();
 }

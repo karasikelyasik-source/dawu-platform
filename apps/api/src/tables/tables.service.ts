@@ -299,6 +299,198 @@ async deleteAllPayments() {
   return deleted;
 }
 
+
+async mergeTable(
+  targetTableId: string,
+  fromTableId: string,
+) {
+  if (targetTableId === fromTableId) {
+    return {
+      success: false,
+      message: 'Cannot merge same table',
+    };
+  }
+
+  const targetTable = await this.prisma.table.findUnique({
+    where: { id: targetTableId },
+  });
+
+  const fromTable = await this.prisma.table.findUnique({
+    where: { id: fromTableId },
+  });
+
+  if (!targetTable || !fromTable) {
+    return {
+      success: false,
+      message: 'Table not found',
+    };
+  }
+
+  const targetPackages = Array.isArray(targetTable.selectedPackages)
+    ? (targetTable.selectedPackages as any[])
+    : [];
+
+  const fromPackages = Array.isArray(fromTable.selectedPackages)
+    ? (fromTable.selectedPackages as any[])
+    : [];
+
+  await this.prisma.$transaction(async (tx) => {
+    await tx.tableOrderLog.updateMany({
+      where: {
+        tableId: fromTableId,
+      },
+      data: {
+        tableId: targetTableId,
+      },
+    });
+
+    await tx.kitchenTicket.updateMany({
+      where: {
+        tableId: fromTableId,
+      },
+      data: {
+        tableId: targetTableId,
+        tableNumber: targetTable.number,
+      },
+    });
+
+    await tx.payment.updateMany({
+      where: {
+        tableId: fromTableId,
+      },
+      data: {
+        tableId: targetTableId,
+        tableNumber: targetTable.number,
+      },
+    });
+
+    await tx.table.update({
+      where: {
+        id: targetTableId,
+      },
+      data: {
+        status: 'OCCUPIED',
+        selectedGuests:
+          (targetTable.selectedGuests || 0) +
+          (fromTable.selectedGuests || 0),
+        selectedPackages: [
+          ...targetPackages,
+          ...fromPackages,
+        ] as any,
+      },
+    });
+
+    await tx.table.update({
+      where: {
+        id: fromTableId,
+      },
+      data: {
+        status: 'AVAILABLE',
+        selectedPackage: null,
+        selectedGuests: null,
+        selectedPackages: Prisma.JsonNull,
+      },
+    });
+  });
+
+  await this.createLog({
+    tableId: targetTableId,
+    type: 'TABLE_MERGED',
+    message: `Merged table ${fromTable.number} into table ${targetTable.number}`,
+  });
+
+  return {
+    success: true,
+  };
+}
+
+async transferTable(fromTableId: string, toTableId: string) {
+  if (fromTableId === toTableId) {
+    return { success: false, message: 'Same table' };
+  }
+
+  const fromTable = await this.prisma.table.findUnique({
+    where: { id: fromTableId },
+  });
+
+  const toTable = await this.prisma.table.findUnique({
+    where: { id: toTableId },
+  });
+
+  if (!fromTable || !toTable) {
+    return { success: false, message: 'Table not found' };
+  }
+
+  const orders = await this.prisma.tableOrderLog.findMany({
+    where: { tableId: fromTableId },
+  });
+
+  
+  await this.prisma.$transaction(async (tx) => {
+    await tx.table.update({
+      where: { id: toTableId },
+      data: {
+        status: fromTable.status,
+        selectedPackage: fromTable.selectedPackage,
+        selectedGuests: fromTable.selectedGuests,
+        selectedPackages: fromTable.selectedPackages ?? Prisma.JsonNull,
+      },
+    });
+
+    
+    await tx.tableOrderLog.updateMany({
+      where: { tableId: fromTableId },
+      data: { tableId: toTableId },
+    });
+
+    await tx.kitchenTicket.updateMany({
+      where: { tableId: fromTableId },
+      data: {
+        tableId: toTableId,
+        tableNumber: toTable.number,
+      },
+    });
+
+    await tx.table.update({
+      where: { id: fromTableId },
+      data: {
+        status: 'AVAILABLE',
+        selectedPackage: null,
+        selectedGuests: null,
+        selectedPackages: Prisma.JsonNull,
+      },
+    });
+  });
+
+  await this.createLog({
+    tableId: fromTableId,
+    type: 'TABLE_TRANSFERRED',
+    message: `Transferred table ${fromTable.number} to table ${toTable.number}`,
+    beforeData: {
+      fromTable,
+      toTable,
+      orders,
+    } as any,
+  });
+
+  await this.createLog({
+    tableId: toTableId,
+    type: 'TABLE_TRANSFER_RECEIVED',
+    message: `Received transfer from table ${fromTable.number}`,
+    afterData: {
+      fromTable,
+      toTable,
+      orders,
+    } as any,
+  });
+
+  return {
+    success: true,
+    fromTable,
+    toTable,
+  };
+}
+
   async updateStatus(
     id: string,
     status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING',
@@ -338,11 +530,17 @@ async deleteAllPayments() {
       },
     });
 
-    await this.prisma.tableOrderLog.deleteMany({
-      where: {
-        tableId: id,
-      },
-    });
+   await this.prisma.payment.deleteMany({
+  where: {
+    tableId: id,
+  },
+});
+
+await this.prisma.tableOrderLog.deleteMany({
+  where: {
+    tableId: id,
+  },
+});
 
     const table = await this.prisma.table.update({
       where: { id },

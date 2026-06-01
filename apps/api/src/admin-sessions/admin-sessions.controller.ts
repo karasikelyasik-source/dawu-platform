@@ -60,4 +60,9 @@ ban(
   ) {
     return this.service.changeRole(userId, body.role);
   }
+
+  @Patch(':id/logout')
+logoutSession(@Param('id') id: string) {
+  return this.service.logoutSession(id);
+  }
 }

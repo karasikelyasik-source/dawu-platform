@@ -59,7 +59,10 @@ const groups = [
 export default function TablesDashboard() {
   const [tables, setTables] = useState<Table[]>([]);
   const [transferFromId, setTransferFromId] = useState<string | null>(null);
+  const [mergeFromId, setMergeFromId] = useState<string | null>(null);
   const [transferLoading, setTransferLoading] = useState(false);
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const [serviceAlerts, setServiceAlerts] = useState<any[]>([]);
 
   async function loadTables() {
     try {
@@ -68,19 +71,71 @@ export default function TablesDashboard() {
       });
 
       const data = await res.json();
-
       setTables(Array.isArray(data) ? data : []);
     } catch (e) {
       console.log(e);
     }
   }
 
+async function loadServiceAlerts() {
+  try {
+    const tablesRes = await fetch('http://31.57.201.45:3000/tables', {
+      cache: 'no-store',
+    });
+
+    const allTables = await tablesRes.json();
+
+    if (!Array.isArray(allTables)) {
+      setServiceAlerts([]);
+      return;
+    }
+
+    const alerts: any[] = [];
+
+    for (const table of allTables) {
+      const logsRes = await fetch(
+        `http://31.57.201.45:3000/tables/${table.id}/order-logs`,
+        {
+          cache: 'no-store',
+        },
+      );
+
+      const logs = await logsRes.json();
+
+      if (!Array.isArray(logs)) continue;
+
+      logs
+        .filter(
+          (log: any) =>
+            log.itemName?.includes('Customer calls waiter') ||
+            log.itemName?.includes('Customer asks for bill'),
+        )
+        .forEach((log: any) => {
+          alerts.push({
+            ...log,
+            tableNumber: table.number,
+            tableName: tableNames[table.number - 1] || `Table ${table.number}`,
+          });
+        });
+    }
+
+    setServiceAlerts(alerts);
+  } catch (e) {
+    console.log(e);
+  }
+}
+
   useEffect(() => {
     setTransferFromId(sessionStorage.getItem('dawu-transfer-from-table-id'));
+    setMergeFromId(sessionStorage.getItem('dawu-merge-from-table-id'));
 
     loadTables();
+    loadServiceAlerts();
 
-    const interval = setInterval(loadTables, 2000);
+    const interval = setInterval(() => {
+  loadTables();
+  loadServiceAlerts();
+}, 2000);
 
     return () => clearInterval(interval);
   }, []);
@@ -134,6 +189,45 @@ export default function TablesDashboard() {
   async function openTable(table?: Table) {
     if (!table?.id) return;
 
+    const mergeFromTableId = sessionStorage.getItem('dawu-merge-from-table-id');
+
+    if (mergeFromTableId) {
+      if (mergeFromTableId === table.id) return;
+
+      try {
+        setMergeLoading(true);
+
+        const res = await fetch(
+          `http://31.57.201.45:3000/tables/${table.id}/merge`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              fromTableId: mergeFromTableId,
+            }),
+          },
+        );
+
+        const result = await res.json();
+
+        if (!res.ok || result?.success !== true) {
+          alert(result?.message || 'Merge failed');
+          return;
+        }
+
+        sessionStorage.removeItem('dawu-merge-from-table-id');
+        setMergeFromId(null);
+
+        window.location.href = `/tables/${table.id}`;
+      } finally {
+        setMergeLoading(false);
+      }
+
+      return;
+    }
+
     const fromTableId = sessionStorage.getItem('dawu-transfer-from-table-id');
 
     if (fromTableId) {
@@ -142,25 +236,25 @@ export default function TablesDashboard() {
       try {
         setTransferLoading(true);
 
-       const res = await fetch(`http://31.57.201.45:3000/tables/${fromTableId}/transfer`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    toTableId: table.id,
-  }),
-});
+        const res = await fetch(
+          `http://31.57.201.45:3000/tables/${fromTableId}/transfer`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              toTableId: table.id,
+            }),
+          },
+        );
 
-const result = await res.json();
+        const result = await res.json();
 
-console.log('TRANSFER RESULT:', result);
-
-if (!res.ok || result?.success !== true) {
-  alert(result?.message || 'Transfer failed');
-  setTransferLoading(false);
-  return;
-}
+        if (!res.ok || result?.success !== true) {
+          alert(result?.message || 'Transfer failed');
+          return;
+        }
 
         sessionStorage.removeItem('dawu-transfer-from-table-id');
         setTransferFromId(null);
@@ -184,6 +278,19 @@ if (!res.ok || result?.success !== true) {
     sessionStorage.removeItem('dawu-transfer-from-table-id');
     setTransferFromId(null);
   }
+
+  function cancelMerge() {
+    sessionStorage.removeItem('dawu-merge-from-table-id');
+    setMergeFromId(null);
+  }
+
+async function dismissServiceAlert(alertId: string) {
+  await fetch(`http://31.57.201.45:3000/tables/order-logs/${alertId}`, {
+    method: 'DELETE',
+  });
+
+  await loadServiceAlerts();
+}
 
   function statusStyle(status?: Table['status']) {
     if (status === 'OCCUPIED') {
@@ -246,12 +353,17 @@ if (!res.ok || result?.success !== true) {
   }) {
     const table = getTableByName(name);
     const style = statusStyle(table?.status);
-    const isSource = transferFromId === table?.id;
+
+    const isTransferSource = transferFromId === table?.id;
+    const isMergeSource = mergeFromId === table?.id;
+    const isSource = isTransferSource || isMergeSource;
+
+    const isActionMode = Boolean(transferFromId || mergeFromId);
 
     return (
       <button
         onClick={() => openTable(table)}
-        disabled={transferLoading || isSource}
+        disabled={transferLoading || mergeLoading || isSource}
         className={`
           relative overflow-hidden rounded-2xl border
           backdrop-blur-xl
@@ -269,9 +381,16 @@ if (!res.ok || result?.success !== true) {
               : ''
           }
           ${
-            isSource
+            mergeFromId && !isSource
+              ? 'ring-2 ring-blue-500/40 hover:shadow-blue-500/30'
+              : ''
+          }
+          ${
+            isTransferSource
               ? 'border-purple-500/50 bg-purple-500/10'
-              : style.card
+              : isMergeSource
+                ? 'border-blue-500/50 bg-blue-500/10'
+                : style.card
           }
           ${style.glow}
           ${compact ? 'min-h-[118px]' : 'min-h-[132px]'}
@@ -285,9 +404,21 @@ if (!res.ok || result?.success !== true) {
           </div>
         )}
 
-        {isSource && (
+        {mergeFromId && !isSource && (
+          <div className="absolute right-3 top-3 z-20 rounded-full bg-blue-500 px-3 py-1 text-[10px] font-black uppercase text-white">
+            Merge here
+          </div>
+        )}
+
+        {isTransferSource && (
           <div className="absolute right-3 top-3 z-20 rounded-full bg-purple-500/20 px-3 py-1 text-[10px] font-black uppercase text-purple-300">
-            From here
+            Transfer from
+          </div>
+        )}
+
+        {isMergeSource && (
+          <div className="absolute right-3 top-3 z-20 rounded-full bg-blue-500/20 px-3 py-1 text-[10px] font-black uppercase text-blue-300">
+            Merge from
           </div>
         )}
 
@@ -297,7 +428,7 @@ if (!res.ok || result?.success !== true) {
               {name}
             </div>
 
-            {!transferFromId && (
+            {!isActionMode && (
               <div
                 className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${style.badge}`}
               >
@@ -321,7 +452,11 @@ if (!res.ok || result?.success !== true) {
           )}
 
           <div className={`mt-4 text-sm font-bold ${style.text}`}>
-            {isSource ? 'Transfer source' : style.label}
+            {isTransferSource
+              ? 'Transfer source'
+              : isMergeSource
+                ? 'Merge source'
+                : style.label}
           </div>
         </div>
       </button>
@@ -398,6 +533,64 @@ if (!res.ok || result?.success !== true) {
             )}
           </div>
         )}
+
+        {mergeFromId && (
+          <div className="mb-5 rounded-3xl border border-blue-500/30 bg-blue-500/10 p-5 text-blue-300 shadow-2xl shadow-blue-500/10">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-xl font-black">
+                  Merge mode active
+                </div>
+
+                <div className="mt-1 text-sm text-blue-200/80">
+                  From {getTableDisplayName(mergeFromId)}. Click target table to merge both tables.
+                </div>
+              </div>
+
+              <button
+                onClick={cancelMerge}
+                className="rounded-xl bg-blue-500 px-4 py-2 font-bold text-white"
+              >
+                Cancel merge
+              </button>
+            </div>
+
+            {mergeLoading && (
+              <div className="mt-4 text-sm font-bold text-blue-200">
+                Merging...
+              </div>
+            )}
+          </div>
+        )}
+
+
+{serviceAlerts.length > 0 && (
+  <div className="mb-5 space-y-3">
+    {serviceAlerts.map((alert) => (
+     <div
+  key={alert.id}
+  className="flex items-center justify-between gap-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4"
+>
+  <div>
+    <div className="font-black text-yellow-300">
+      {alert.itemName}
+    </div>
+
+    <div className="text-sm text-yellow-100/80">
+      Table: {alert.tableName}
+    </div>
+  </div>
+
+  <button
+    onClick={() => dismissServiceAlert(alert.id)}
+    className="rounded-xl bg-yellow-500 px-4 py-2 font-black text-black"
+  >
+    Done
+  </button>
+</div>
+    ))}
+  </div>
+)}
 
         <div className="space-y-4">
           <div className="grid gap-4 xl:grid-cols-[1fr_0.58fr]">

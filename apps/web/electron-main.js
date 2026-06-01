@@ -1,5 +1,5 @@
 const { spawn } = require('child_process');
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const fs = require('fs');
@@ -99,6 +99,8 @@ function createWindow() {
   nodeIntegration: false,
 },
   });
+
+  mainWindow.setMenuBarVisibility(false);
 
   const startUrl = 'http://localhost:3001';
 
@@ -415,7 +417,7 @@ if (app.isPackaged) {
       );
     });
 
-  //startKitchenPrinterWatcher();
+  startKitchenPrinterWatcher();
 
    // mainWindow.webContents.openDevTools();
 }
@@ -1001,7 +1003,20 @@ ipcMain.on('install-update', () => {
   }, 300);
 });
 
+ipcMain.handle('get-printers', async () => {
+  if (!mainWindow) return [];
+
+  const printers = await mainWindow.webContents.getPrintersAsync();
+
+  return printers.map((printer) => ({
+    name: printer.name,
+    displayName: printer.displayName || printer.name,
+    isDefault: printer.isDefault || false,
+  }));
+});
+
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   startNextServer();
   createWindow();
 });

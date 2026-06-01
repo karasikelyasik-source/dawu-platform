@@ -305,7 +305,14 @@ async mergeTable(
   fromTableId: string,
 ) {
   if (targetTableId === fromTableId) {
+<<<<<<< HEAD
     return { success: false, message: 'Cannot merge same table' };
+=======
+    return {
+      success: false,
+      message: 'Cannot merge same table',
+    };
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
   }
 
   const targetTable = await this.prisma.table.findUnique({
@@ -317,7 +324,14 @@ async mergeTable(
   });
 
   if (!targetTable || !fromTable) {
+<<<<<<< HEAD
     return { success: false, message: 'Table not found' };
+=======
+    return {
+      success: false,
+      message: 'Table not found',
+    };
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
   }
 
   const targetPackages = Array.isArray(targetTable.selectedPackages)
@@ -330,12 +344,27 @@ async mergeTable(
 
   await this.prisma.$transaction(async (tx) => {
     await tx.tableOrderLog.updateMany({
+<<<<<<< HEAD
       where: { tableId: fromTableId },
       data: { tableId: targetTableId },
     });
 
     await tx.kitchenTicket.updateMany({
       where: { tableId: fromTableId },
+=======
+      where: {
+        tableId: fromTableId,
+      },
+      data: {
+        tableId: targetTableId,
+      },
+    });
+
+    await tx.kitchenTicket.updateMany({
+      where: {
+        tableId: fromTableId,
+      },
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
       data: {
         tableId: targetTableId,
         tableNumber: targetTable.number,
@@ -343,7 +372,13 @@ async mergeTable(
     });
 
     await tx.payment.updateMany({
+<<<<<<< HEAD
       where: { tableId: fromTableId },
+=======
+      where: {
+        tableId: fromTableId,
+      },
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
       data: {
         tableId: targetTableId,
         tableNumber: targetTable.number,
@@ -351,7 +386,13 @@ async mergeTable(
     });
 
     await tx.table.update({
+<<<<<<< HEAD
       where: { id: targetTableId },
+=======
+      where: {
+        id: targetTableId,
+      },
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
       data: {
         status: 'OCCUPIED',
         selectedGuests:
@@ -365,7 +406,13 @@ async mergeTable(
     });
 
     await tx.table.update({
+<<<<<<< HEAD
       where: { id: fromTableId },
+=======
+      where: {
+        id: fromTableId,
+      },
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
       data: {
         status: 'AVAILABLE',
         selectedPackage: null,
@@ -381,7 +428,13 @@ async mergeTable(
     message: `Merged table ${fromTable.number} into table ${targetTable.number}`,
   });
 
+<<<<<<< HEAD
   return { success: true };
+=======
+  return {
+    success: true,
+  };
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
 }
 
 async transferTable(fromTableId: string, toTableId: string) {
@@ -405,6 +458,10 @@ async transferTable(fromTableId: string, toTableId: string) {
     where: { tableId: fromTableId },
   });
 
+<<<<<<< HEAD
+=======
+  
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
   await this.prisma.$transaction(async (tx) => {
     await tx.table.update({
       where: { id: toTableId },
@@ -416,6 +473,10 @@ async transferTable(fromTableId: string, toTableId: string) {
       },
     });
 
+<<<<<<< HEAD
+=======
+    
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
     await tx.tableOrderLog.updateMany({
       where: { tableId: fromTableId },
       data: { tableId: toTableId },
@@ -444,17 +505,40 @@ async transferTable(fromTableId: string, toTableId: string) {
     tableId: fromTableId,
     type: 'TABLE_TRANSFERRED',
     message: `Transferred table ${fromTable.number} to table ${toTable.number}`,
+<<<<<<< HEAD
     beforeData: { fromTable, toTable, orders } as any,
+=======
+    beforeData: {
+      fromTable,
+      toTable,
+      orders,
+    } as any,
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
   });
 
   await this.createLog({
     tableId: toTableId,
     type: 'TABLE_TRANSFER_RECEIVED',
     message: `Received transfer from table ${fromTable.number}`,
+<<<<<<< HEAD
     afterData: { fromTable, toTable, orders } as any,
   });
 
   return { success: true };
+=======
+    afterData: {
+      fromTable,
+      toTable,
+      orders,
+    } as any,
+  });
+
+  return {
+    success: true,
+    fromTable,
+    toTable,
+  };
+>>>>>>> b809c9c36b4377ad2c52e2bd3bb5efabacf67364
 }
 
   async updateStatus(
@@ -496,11 +580,17 @@ async transferTable(fromTableId: string, toTableId: string) {
       },
     });
 
-    await this.prisma.tableOrderLog.deleteMany({
-      where: {
-        tableId: id,
-      },
-    });
+   await this.prisma.payment.deleteMany({
+  where: {
+    tableId: id,
+  },
+});
+
+await this.prisma.tableOrderLog.deleteMany({
+  where: {
+    tableId: id,
+  },
+});
 
     const table = await this.prisma.table.update({
       where: { id },

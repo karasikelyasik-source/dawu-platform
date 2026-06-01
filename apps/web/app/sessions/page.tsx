@@ -30,11 +30,20 @@ export default function SessionsPage() {
   const [reason, setReason] = useState('');
   const [duration, setDuration] = useState<BanDuration>('PERMANENT');
 
-  async function loadSessions() {
-    const res = await fetch(`${API}/admin-sessions`);
-    const data = await res.json();
-    setSessions(Array.isArray(data) ? data : []);
-  }
+ async function loadSessions() {
+  const res = await fetch(`${API}/admin-sessions`);
+  const data = await res.json();
+
+  const activeSessions = Array.isArray(data)
+    ? data.filter(
+        (session: any) =>
+          session.online === true &&
+          session.banned !== true,
+      )
+    : [];
+
+  setSessions(activeSessions);
+}
 
   function getExpiresAt() {
     if (duration === 'PERMANENT') return null;
@@ -122,13 +131,15 @@ export default function SessionsPage() {
     loadSessions();
   }
 
-  useEffect(() => {
+useEffect(() => {
+  loadSessions();
+
+  const interval = setInterval(() => {
     loadSessions();
+  }, 2000);
 
-    const timer = setInterval(loadSessions, 5000);
-
-    return () => clearInterval(timer);
-  }, []);
+  return () => clearInterval(interval);
+}, []);
 
   return (
     <main className="min-h-screen bg-black text-white p-10">

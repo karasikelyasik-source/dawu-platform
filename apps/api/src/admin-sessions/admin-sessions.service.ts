@@ -11,22 +11,26 @@ export class AdminSessionsService {
     });
   }
 
-  findAll() {
-    return this.prisma.session.findMany({
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
+findAll() {
+  return this.prisma.session.findMany({
+    where: {
+      online: true,
+    },
+    distinct: ['userId'],
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          role: true,
         },
       },
-      orderBy: {
-        lastSeenAt: 'desc',
-      },
-    });
-  }
+    },
+    orderBy: {
+      lastSeenAt: 'desc',
+    },
+  });
+}
 
   async ban(data: {
     type: 'EMAIL' | 'IP';
@@ -136,6 +140,15 @@ export class AdminSessionsService {
       },
     });
   }
+
+logoutSession(id: string) {
+  return this.prisma.session.update({
+    where: { id },
+    data: {
+      online: false,
+    },
+  });
+}
 
   changeRole(userId: string, role: 'ADMIN' | 'STAFF') {
     return this.prisma.user.update({

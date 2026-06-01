@@ -138,6 +138,28 @@ removeTip(@Param('id') id: string) {
     return this.tablesService.markReady(id);
   }
   
+@Post(':id/transfer')
+transferTable(
+  @Param('id') id: string,
+  @Body() body: any,
+) {
+  return this.tablesService.transferTable(
+    id,
+    body.toTableId,
+  );
+}
+
+@Post(':id/merge')
+mergeTable(
+  @Param('id') id: string,
+  @Body() body: any,
+) {
+  return this.tablesService.mergeTable(
+    id,
+    body.fromTableId,
+  );
+}
+
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,

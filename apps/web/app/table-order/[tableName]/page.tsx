@@ -8,6 +8,8 @@ type Table = {
   number: number;
   status: string;
   selectedPackage?: string | null;
+  selectedGuests?: number | null;
+  selectedPackages?: any[] | null;
 };
 
 type MenuItem = {
@@ -37,15 +39,23 @@ export default function TableOrderPage() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<MenuItem[]>([]);
   const [message, setMessage] = useState('');
+  const isTableOpen =
+  table?.status === 'OCCUPIED' ||
+  Boolean(table?.selectedPackage) ||
+  Boolean(table?.selectedPackages?.length);
 
   async function loadData() {
     const tablesRes = await fetch(`${API_URL}/tables`);
     const tables = await tablesRes.json();
 
-    const index = tableNames.indexOf(tableName);
-    const foundTable = tables[index];
+   const index = tableNames.indexOf(tableName);
+const tableNumber = index + 1;
 
-    setTable(foundTable || null);
+const foundTable = Array.isArray(tables)
+  ? tables.find((item: any) => item.number === tableNumber)
+  : null;
+
+setTable(foundTable || null);
 
     const menuRes = await fetch(`${API_URL}/menu`);
     const categories = await menuRes.json();
@@ -107,9 +117,15 @@ export default function TableOrderPage() {
     );
   }
 
-  useEffect(() => {
+ useEffect(() => {
+  loadData();
+
+  const interval = setInterval(() => {
     loadData();
-  }, []);
+  }, 2000);
+
+  return () => clearInterval(interval);
+}, []);
 
   if (!table) {
     return (
@@ -138,7 +154,7 @@ export default function TableOrderPage() {
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button
               onClick={() => sendServiceRequest('WAITER')}
-              disabled={table.status !== 'OCCUPIED'}
+              disabled={!isTableOpen}
               className="rounded-xl bg-blue-500 px-4 py-3 font-bold text-white disabled:opacity-40"
             >
               🔔 Call Waiter
@@ -146,14 +162,14 @@ export default function TableOrderPage() {
 
             <button
               onClick={() => sendServiceRequest('BILL')}
-              disabled={table.status !== 'OCCUPIED'}
+              disabled={!isTableOpen}
               className="rounded-xl bg-yellow-500 px-4 py-3 font-bold text-black disabled:opacity-40"
             >
               💳 Need Bill
             </button>
           </div>
 
-          {table.status !== 'OCCUPIED' && (
+          {!isTableOpen && (
             <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
               This table is not open yet. Ask staff to open your table.
             </div>
@@ -176,7 +192,7 @@ export default function TableOrderPage() {
 
               <button
                 onClick={() => addToCart(item)}
-                disabled={table.status !== 'OCCUPIED'}
+               disabled={!isTableOpen}
                 className="mt-4 w-full rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
               >
                 Add
@@ -200,7 +216,7 @@ export default function TableOrderPage() {
 
             <button
               onClick={sendOrder}
-              disabled={cart.length === 0 || table.status !== 'OCCUPIED'}
+              disabled={cart.length === 0 || !isTableOpen}
               className="w-full rounded-xl bg-green-500 px-4 py-4 font-black text-black disabled:opacity-40"
             >
               Send Order

@@ -21,7 +21,7 @@ export default function QRCodesPage() {
       const result: Record<string, string> = {};
 
       for (const table of tableNames) {
-        const url = `http://localhost:3001/table-order/${table}`;
+        const url = `http://31.57.201.45:3001/table-order/${table}`;
 
         result[table] = await QRCode.toDataURL(url);
       }

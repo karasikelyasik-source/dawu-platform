@@ -26,7 +26,7 @@ const tableNames = [
   'C7', 'C8', 'C9', 'C9a', 'C10', 'C10a',
   'C15', 'C16', 'C17', 'C18', 'C19',
 ];
-const API_URL = 'http://31.57.201.45:3000';
+const API_URL = '/api-proxy';
 
 
 export default function TableOrderPage() {
@@ -144,7 +144,7 @@ setTable(foundTable || null);
           <div className="mt-4 grid grid-cols-2 gap-3">
             <button
               onClick={() => sendServiceRequest('WAITER')}
-              disabled={table.status !== 'OCCUPIED'}
+              disabled={!isTableOpen}
               className="rounded-xl bg-blue-500 px-4 py-3 font-bold text-white disabled:opacity-40"
             >
               🔔 Call Waiter
@@ -152,14 +152,14 @@ setTable(foundTable || null);
 
             <button
               onClick={() => sendServiceRequest('BILL')}
-              disabled={table.status !== 'OCCUPIED'}
+              disabled={!isTableOpen}
               className="rounded-xl bg-yellow-500 px-4 py-3 font-bold text-black disabled:opacity-40"
             >
               💳 Need Bill
             </button>
           </div>
 
-          {table.status !== 'OCCUPIED' && (
+          {!isTableOpen && (
             <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
               This table is not open yet. Ask staff to open your table.
             </div>
@@ -182,7 +182,7 @@ setTable(foundTable || null);
 
               <button
                 onClick={() => addToCart(item)}
-                disabled={table.status !== 'OCCUPIED'}
+                disabled={!isTableOpen}
                 className="mt-4 w-full rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
               >
                 Add
@@ -206,7 +206,7 @@ setTable(foundTable || null);
 
             <button
               onClick={sendOrder}
-              disabled={cart.length === 0 || table.status !== 'OCCUPIED'}
+              disabled={cart.length === 0 || !isTableOpen}
               className="w-full rounded-xl bg-green-500 px-4 py-4 font-black text-black disabled:opacity-40"
             >
               Send Order

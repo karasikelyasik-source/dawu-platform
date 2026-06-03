@@ -19,6 +19,8 @@ type MenuItem = {
   btwRate?: number;
 };
 
+const API_URL = '/api-proxy';
+
 const tableNames = [
   'A1', 'A2', 'A3', 'A4', 'A5',
   'A6', 'A7', 'A8', 'A9', 'A10',
@@ -28,8 +30,6 @@ const tableNames = [
   'C7', 'C8', 'C9', 'C9a', 'C10', 'C10a',
   'C15', 'C16', 'C17', 'C18', 'C19',
 ];
-const API_URL = 'http://31.57.201.45:3000';
-
 
 export default function TableOrderPage() {
   const params = useParams();
@@ -39,25 +39,38 @@ export default function TableOrderPage() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<MenuItem[]>([]);
   const [message, setMessage] = useState('');
+  const [loadedAt, setLoadedAt] = useState('');
+
   const isTableOpen =
-  table?.status === 'OCCUPIED' ||
-  Boolean(table?.selectedPackage) ||
-  Boolean(table?.selectedPackages?.length);
+    table?.status === 'OCCUPIED' ||
+    Boolean(table?.selectedPackage) ||
+    Boolean(table?.selectedPackages?.length);
+
+  const total = cart.reduce(
+    (sum, item) => sum + Number(item.price || 0),
+    0,
+  );
 
   async function loadData() {
-    const tablesRes = await fetch(`${API_URL}/tables`);
+    const tablesRes = await fetch(`${API_URL}/tables?t=${Date.now()}`, {
+      cache: 'no-store',
+    });
+
     const tables = await tablesRes.json();
 
-   const index = tableNames.indexOf(tableName);
-const tableNumber = index + 1;
+    const index = tableNames.indexOf(tableName);
+    const tableNumber = index + 1;
 
-const foundTable = Array.isArray(tables)
-  ? tables.find((item: any) => item.number === tableNumber)
-  : null;
+    const foundTable = Array.isArray(tables)
+      ? tables.find((item: any) => Number(item.number) === tableNumber)
+      : null;
 
-setTable(foundTable || null);
+    setTable(foundTable || null);
 
-    const menuRes = await fetch(`${API_URL}/menu`);
+    const menuRes = await fetch(`${API_URL}/menu?t=${Date.now()}`, {
+      cache: 'no-store',
+    });
+
     const categories = await menuRes.json();
 
     const items = Array.isArray(categories)
@@ -65,6 +78,7 @@ setTable(foundTable || null);
       : [];
 
     setMenu(items);
+    setLoadedAt(new Date().toLocaleTimeString());
   }
 
   function addToCart(item: MenuItem) {
@@ -72,8 +86,12 @@ setTable(foundTable || null);
     setMessage('');
   }
 
+  function removeFromCart(index: number) {
+    setCart((prev) => prev.filter((_, i) => i !== index));
+  }
+
   async function sendOrder() {
-    if (!table || cart.length === 0) return;
+    if (!table || cart.length === 0 || !isTableOpen) return;
 
     setMessage('Sending order...');
 
@@ -94,7 +112,7 @@ setTable(foundTable || null);
   }
 
   async function sendServiceRequest(type: 'WAITER' | 'BILL') {
-    if (!table) return;
+    if (!table || !isTableOpen) return;
 
     const itemName =
       type === 'WAITER'
@@ -117,20 +135,19 @@ setTable(foundTable || null);
     );
   }
 
- useEffect(() => {
-  loadData();
-
-  const interval = setInterval(() => {
+  useEffect(() => {
     loadData();
-  }, 2000);
 
-  return () => clearInterval(interval);
-}, []);
+    const interval = setInterval(loadData, 1500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   if (!table) {
     return (
       <main className="min-h-screen bg-zinc-950 p-6 text-white">
-        Table not found
+        <div className="text-2xl font-black">Table not found</div>
+        <div className="mt-2 text-zinc-400">Requested: {tableName}</div>
       </main>
     );
   }
@@ -140,15 +157,46 @@ setTable(foundTable || null);
       <div className="mx-auto max-w-md">
         <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-zinc-800 bg-zinc-950/95 p-4 backdrop-blur">
           <h1 className="text-3xl font-black">
-            DaWu Menu
+            DaWu Sushi Fusion
           </h1>
 
-          <div className="mt-1 text-zinc-400">
-            Table {tableName}
+          <div className="text-sm text-zinc-500">
+            Welcome to our restaurant
           </div>
 
-          <div className="mt-1 text-xs text-zinc-600">
-            STATUS: {table.status}
+          <div className="mt-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-zinc-400 text-sm">Table</div>
+                <div className="text-2xl font-black">{tableName}</div>
+              </div>
+
+              <div
+                className={`rounded-full px-3 py-1 text-xs font-black ${
+                  isTableOpen
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-red-500/20 text-red-400'
+                }`}
+              >
+                {isTableOpen ? 'OPEN' : 'CLOSED'}
+              </div>
+            </div>
+
+            <div className="mt-3 text-xs text-zinc-500">
+              Status: {table.status} • updated {loadedAt}
+            </div>
+
+            {table.selectedPackage && (
+              <div className="mt-3 text-sm text-green-400">
+                Package: {table.selectedPackage}
+              </div>
+            )}
+
+            {table.selectedGuests && (
+              <div className="text-sm text-zinc-300">
+                Guests: {table.selectedGuests}
+              </div>
+            )}
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -169,30 +217,39 @@ setTable(foundTable || null);
             </button>
           </div>
 
+          <div className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+            <div className="font-bold">🍣 All You Can Eat</div>
+
+            <ul className="mt-2 space-y-1 text-sm text-zinc-400">
+              <li>• 10 dishes per person per round</li>
+              <li>• New round every 10 minutes</li>
+              <li>• Dining time: 2.5 hours</li>
+              <li>• Please avoid food waste</li>
+            </ul>
+          </div>
+
           {!isTableOpen && (
-            <div className="mt-3 rounded-xl bg-red-500/10 border border-red-500/30 p-3 text-sm text-red-300">
+            <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
               This table is not open yet. Ask staff to open your table.
             </div>
           )}
         </div>
 
-        <div className="space-y-3 pb-56">
+        <div className="space-y-3 pb-72">
           {menu.map((item) => (
             <div
               key={item.id}
               className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4"
             >
-              <div className="text-lg font-bold">
-                {item.name}
-              </div>
+              <div className="text-lg font-bold">{item.name}</div>
 
               <div className="mt-1 text-zinc-400">
-                €{item.price}
+                €{Number(item.price || 0).toFixed(2)}
               </div>
 
               <button
                 onClick={() => addToCart(item)}
-               disabled={!isTableOpen}
+                disabled={!isTableOpen}
                 className="mt-4 w-full rounded-xl bg-white px-4 py-3 font-bold text-black disabled:opacity-40"
               >
                 Add
@@ -205,11 +262,37 @@ setTable(foundTable || null);
           <div className="mx-auto max-w-md">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span>Cart</span>
-              <span>{cart.length} items</span>
+
+              <div className="text-right">
+                <div>{cart.length} items</div>
+                <div className="font-black text-green-400">
+                  €{total.toFixed(2)}
+                </div>
+              </div>
             </div>
 
+            {cart.length > 0 && (
+              <div className="mb-4 max-h-36 space-y-2 overflow-auto rounded-xl bg-zinc-900 p-3">
+                {cart.map((item, index) => (
+                  <div
+                    key={`${item.id}-${index}`}
+                    className="flex items-center justify-between gap-3 text-sm"
+                  >
+                    <span className="truncate">{item.name}</span>
+
+                    <button
+                      onClick={() => removeFromCart(index)}
+                      className="text-red-400"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {message && (
-              <div className="mb-3 text-sm text-green-400">
+              <div className="mb-3 rounded-xl bg-green-500/10 p-3 text-sm text-green-400">
                 {message}
               </div>
             )}

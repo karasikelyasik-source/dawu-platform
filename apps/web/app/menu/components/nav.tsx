@@ -13,6 +13,7 @@ import {
   BarChart3,
   MonitorCog,
   Keyboard,
+  QrCode,
   LogOut,
 } from 'lucide-react';
 
@@ -124,6 +125,18 @@ export default function Nav() {
 
               <span className="text-xs text-zinc-500">CTRL+1</span>
             </a>
+
+<a
+  href="/qr-codes"
+  className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10 hover:text-white"
+>
+  <span className="flex items-center gap-3">
+    <QrCode size={18} />
+    QR Codes
+  </span>
+
+  <span className="text-xs text-zinc-500">QR</span>
+</a>
 
             <a
               href="/hotkeys"

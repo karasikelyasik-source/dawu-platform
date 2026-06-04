@@ -1,6 +1,6 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-const API_URL = 'http://localhost:3000';
+const API_URL = 'http://31.57.201.45:3000';
 
 async function proxy(
   request: NextRequest,
@@ -9,28 +9,28 @@ async function proxy(
   const params = await context.params;
   const path = params.path.join('/');
 
-  const url = `${API_URL}/${path}`;
+  const url = `${API_URL}/${path}${request.nextUrl.search}`;
 
   const body =
-    request.method === 'GET'
+    request.method === 'GET' || request.method === 'HEAD'
       ? undefined
       : await request.text();
 
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     method: request.method,
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': request.headers.get('content-type') || 'application/json',
     },
     body,
+    cache: 'no-store',
   });
 
-  const text = await res.text();
+  const data = await response.text();
 
-  return new Response(text, {
-    status: res.status,
+  return new NextResponse(data, {
+    status: response.status,
     headers: {
-      'Content-Type':
-        res.headers.get('Content-Type') || 'application/json',
+      'Content-Type': response.headers.get('content-type') || 'application/json',
     },
   });
 }

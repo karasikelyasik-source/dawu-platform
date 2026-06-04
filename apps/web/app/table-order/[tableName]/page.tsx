@@ -47,6 +47,34 @@ export default function TableOrderPage() {
     return cart.reduce((sum, item) => sum + Number(item.price || 0), 0);
   }, [cart]);
 
+
+useEffect(() => {
+  if (!tableName) return;
+
+  const savedCart = localStorage.getItem(
+    `dawu-order-draft-${tableName}`,
+  );
+
+  if (savedCart) {
+    try {
+      setCart(JSON.parse(savedCart));
+    } catch {
+      localStorage.removeItem(
+        `dawu-order-draft-${tableName}`,
+      );
+    }
+  }
+}, [tableName]);
+
+useEffect(() => {
+  if (!tableName) return;
+
+  localStorage.setItem(
+    `dawu-order-draft-${tableName}`,
+    JSON.stringify(cart),
+  );
+}, [cart, tableName]);
+
   async function loadData() {
     try {
       const index = tableNames.indexOf(tableName);
@@ -110,9 +138,13 @@ export default function TableOrderPage() {
       });
     }
 
-    setCart([]);
-    setMessage('Order sent to kitchen ✅');
-    setCartOpen(true);
+   localStorage.removeItem(
+  `dawu-order-draft-${tableName}`,
+);
+
+setCart([]);
+setMessage('Order sent to kitchen ✅');
+setCartOpen(true);
   }
 
   async function sendServiceRequest(type: 'WAITER' | 'BILL') {

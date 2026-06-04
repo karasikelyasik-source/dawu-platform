@@ -2,113 +2,68 @@
 
 import { useEffect, useState } from 'react';
 
+const API_URL = '/api-proxy';
+
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('admin@dawu.nl');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [systemMessage, setSystemMessage] = useState<{
-    type: string;
-    message: string;
-    reason: string;
-  } | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const savedEmail = localStorage.getItem('dawu_login_email');
-    const raw = sessionStorage.getItem('dawu-system-message');
 
     if (savedEmail) {
       setEmail(savedEmail);
     }
-
-    if (raw) {
-      setSystemMessage(JSON.parse(raw));
-      sessionStorage.removeItem('dawu-system-message');
-    }
   }, []);
 
   async function login() {
+    if (loading) return;
+
     setError('');
+    setLoading(true);
 
-    const res = await fetch('http://31.57.201.45:3000/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const res = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-   if (!res.ok) {
-  const data = await res.json().catch(() => null);
+      const data = await res.json().catch(() => null);
 
-  const message =
-    data?.message?.message ||
-    data?.message ||
-    'Wrong email or password';
+      if (!res.ok) {
+        setError(data?.message || 'Wrong email or password');
+        return;
+      }
 
-  if (message === 'Email banned') {
-    setError(
-      data?.message?.reason
-        ? `You are banned: ${data.message.reason}`
-        : 'You are banned from this system',
-    );
-  } else if (message === 'IP banned') {
-    setError(
-      data?.message?.reason
-        ? `Your IP is banned: ${data.message.reason}`
-        : 'Your device/IP is banned from this system',
-    );
-  } else {
-    setError('Wrong email or password');
-  }
+      localStorage.setItem('dawu_login_email', email);
+      sessionStorage.setItem('dawu-user', JSON.stringify(data));
 
-  return;
-}
+      if (data.sessionId) {
+        sessionStorage.setItem('dawu-session-id', data.sessionId);
+      }
 
-    const user = await res.json();
-
-    localStorage.setItem('dawu_login_email', email);
-    sessionStorage.setItem('dawu-user', JSON.stringify(user));
-
-    if (user.sessionId) {
-      sessionStorage.setItem('dawu-session-id', user.sessionId);
+      setPassword('');
+      window.location.href = '/';
+    } catch (error) {
+      console.log('Login failed:', error);
+      setError('Cannot connect to server. Please check API connection.');
+    } finally {
+      setLoading(false);
     }
-
-    setPassword('');
-    window.location.href = '/';
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-8">
-      <div className="w-full max-w-md rounded-2xl bg-zinc-900 border border-zinc-800 p-8">
-        <h1 className="text-3xl font-bold mb-2">DaWu Login</h1>
+    <main className="flex min-h-screen items-center justify-center bg-[#050505] p-8 text-white">
+      <div className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-8 shadow-2xl">
+        <h1 className="text-4xl font-black">DaWu Login</h1>
+        <p className="mt-2 text-zinc-500">Staff access only</p>
 
-        <p className="text-zinc-400 mb-8">Staff access only</p>
-
-        {systemMessage && (
-          <div
-            className={
-              systemMessage.type === 'BAN'
-                ? 'mb-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-5'
-                : 'mb-6 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-5'
-            }
-          >
-            <div
-              className={
-                systemMessage.type === 'BAN'
-                  ? 'text-red-400 text-xl font-bold'
-                  : 'text-yellow-400 text-xl font-bold'
-              }
-            >
-              {systemMessage.message}
-            </div>
-
-            <div className="text-zinc-300 mt-2">
-              Reason: {systemMessage.reason}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-4">
+        <div className="mt-8 space-y-4">
           <input
-            className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3"
+            className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-4 text-white outline-none focus:border-emerald-500"
             placeholder="Email"
             type="email"
             autoComplete="username"
@@ -116,30 +71,32 @@ export default function LoginPage() {
             onChange={(e) => setEmail(e.target.value)}
           />
 
-         <input
-  className="w-full rounded-xl bg-zinc-950 border border-zinc-800 px-4 py-3"
-  placeholder="Password"
-  type="password"
-  autoComplete="new-password"
-  value={password}
-  onChange={(e) => setPassword(e.target.value)}
-  onKeyDown={(e) => {
-    if (e.key === 'Enter') {
-      login();
-    }
-  }}
-/>
+          <input
+            className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-4 text-white outline-none focus:border-emerald-500"
+            placeholder="Password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                login();
+              }
+            }}
+          />
 
-{error && (
-  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
-    {error}
-  </div>
-)}
+          {error && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-bold text-red-400">
+              {error}
+            </div>
+          )}
+
           <button
             onClick={login}
-            className="w-full rounded-xl bg-white text-black font-bold px-4 py-3"
+            disabled={loading}
+            className="w-full rounded-2xl bg-white px-4 py-4 font-black text-black disabled:opacity-50"
           >
-            Login
+            {loading ? 'Logging in...' : 'Login'}
           </button>
         </div>
       </div>

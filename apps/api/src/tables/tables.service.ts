@@ -76,11 +76,6 @@ export class TablesService {
 async deleteTable(id: string) {
   const table = await this.prisma.table.findUnique({
     where: { id },
-    include: {
-      orderLogs: true,
-      payments: true,
-      sessions: true,
-    },
   });
 
   if (!table) {
@@ -97,19 +92,26 @@ async deleteTable(id: string) {
     };
   }
 
-  if (
-    table.orderLogs.length > 0 ||
-    table.payments.length > 0 ||
-    table.sessions.length > 0
-  ) {
-    return {
-      success: false,
-      message: 'Cannot delete table with history',
-    };
-  }
+  await this.prisma.$transaction(async (tx) => {
+    await tx.tableLog.deleteMany({
+      where: { tableId: id },
+    });
 
-  await this.prisma.table.delete({
-    where: { id },
+    await tx.tableOrderLog.deleteMany({
+      where: { tableId: id },
+    });
+
+    await tx.kitchenTicket.deleteMany({
+      where: { tableId: id },
+    });
+
+    await tx.payment.deleteMany({
+      where: { tableId: id },
+    });
+
+    await tx.table.delete({
+      where: { id },
+    });
   });
 
   return {

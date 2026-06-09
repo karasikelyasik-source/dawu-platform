@@ -93,11 +93,12 @@ function createWindow() {
     height: 900,
     title: 'DaWu POS',
     autoHideMenuBar: true,
-  webPreferences: {
-  preload: path.join(__dirname, 'preload.js'),
-  contextIsolation: true,
-  nodeIntegration: false,
-},
+
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
   });
 
   mainWindow.setMenuBarVisibility(false);

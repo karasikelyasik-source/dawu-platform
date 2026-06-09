@@ -14,10 +14,13 @@ type Table = {
   number: number;
   seats: number;
   status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
+  note?: string | null;
   selectedPackage?: string | null;
   selectedGuests?: number | null;
   selectedPackages?: SelectedPackageItem[] | null;
 };
+
+const API_URL = 'http://31.57.201.45:3000';
 
 const tableNames = [
   'A1', 'A2', 'A3', 'A4', 'A5',
@@ -64,12 +67,17 @@ export default function TablesDashboard() {
   const [mergeLoading, setMergeLoading] = useState(false);
   const [serviceAlerts, setServiceAlerts] = useState<any[]>([]);
 
+  const [manageOpen, setManageOpen] = useState(false);
+  const [newTableNumber, setNewTableNumber] = useState('');
+  const [newTableSeats, setNewTableSeats] = useState('4');
+  const [newTableNote, setNewTableNote] = useState('');
+
+  const [noteTable, setNoteTable] = useState<Table | null>(null);
+  const [noteText, setNoteText] = useState('');
+
   async function loadTables() {
     try {
-      const res = await fetch('http://31.57.201.45:3000/tables', {
-        cache: 'no-store',
-      });
-
+      const res = await fetch(`${API_URL}/tables`, { cache: 'no-store' });
       const data = await res.json();
       setTables(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -77,53 +85,47 @@ export default function TablesDashboard() {
     }
   }
 
-async function loadServiceAlerts() {
-  try {
-    const tablesRes = await fetch('http://31.57.201.45:3000/tables', {
-      cache: 'no-store',
-    });
+  async function loadServiceAlerts() {
+    try {
+      const tablesRes = await fetch(`${API_URL}/tables`, { cache: 'no-store' });
+      const allTables = await tablesRes.json();
 
-    const allTables = await tablesRes.json();
+      if (!Array.isArray(allTables)) {
+        setServiceAlerts([]);
+        return;
+      }
 
-    if (!Array.isArray(allTables)) {
-      setServiceAlerts([]);
-      return;
-    }
+      const alerts: any[] = [];
 
-    const alerts: any[] = [];
-
-    for (const table of allTables) {
-      const logsRes = await fetch(
-        `http://31.57.201.45:3000/tables/${table.id}/order-logs`,
-        {
+      for (const table of allTables) {
+        const logsRes = await fetch(`${API_URL}/tables/${table.id}/order-logs`, {
           cache: 'no-store',
-        },
-      );
-
-      const logs = await logsRes.json();
-
-      if (!Array.isArray(logs)) continue;
-
-      logs
-        .filter(
-          (log: any) =>
-            log.itemName?.includes('Customer calls waiter') ||
-            log.itemName?.includes('Customer asks for bill'),
-        )
-        .forEach((log: any) => {
-          alerts.push({
-            ...log,
-            tableNumber: table.number,
-            tableName: tableNames[table.number - 1] || `Table ${table.number}`,
-          });
         });
-    }
 
-    setServiceAlerts(alerts);
-  } catch (e) {
-    console.log(e);
+        const logs = await logsRes.json();
+
+        if (!Array.isArray(logs)) continue;
+
+        logs
+          .filter(
+            (log: any) =>
+              log.itemName?.includes('Customer calls waiter') ||
+              log.itemName?.includes('Customer asks for bill'),
+          )
+          .forEach((log: any) => {
+            alerts.push({
+              ...log,
+              tableNumber: table.number,
+              tableName: tableNames[table.number - 1] || `Table ${table.number}`,
+            });
+          });
+      }
+
+      setServiceAlerts(alerts);
+    } catch (e) {
+      console.log(e);
+    }
   }
-}
 
   useEffect(() => {
     setTransferFromId(sessionStorage.getItem('dawu-transfer-from-table-id'));
@@ -133,9 +135,9 @@ async function loadServiceAlerts() {
     loadServiceAlerts();
 
     const interval = setInterval(() => {
-  loadTables();
-  loadServiceAlerts();
-}, 2000);
+      loadTables();
+      loadServiceAlerts();
+    }, 2000);
 
     return () => clearInterval(interval);
   }, []);
@@ -158,9 +160,7 @@ async function loadServiceAlerts() {
   function getGuests(table?: Table) {
     if (!table) return 0;
 
-    if (table.selectedGuests) {
-      return table.selectedGuests;
-    }
+    if (table.selectedGuests) return table.selectedGuests;
 
     if (table.selectedPackages?.length) {
       return table.selectedPackages.reduce(
@@ -173,9 +173,7 @@ async function loadServiceAlerts() {
   }
 
   const totalPeople = useMemo(() => {
-    return tables.reduce((sum, table) => {
-      return sum + getGuests(table);
-    }, 0);
+    return tables.reduce((sum, table) => sum + getGuests(table), 0);
   }, [tables]);
 
   const occupiedTables = useMemo(() => {
@@ -185,6 +183,90 @@ async function loadServiceAlerts() {
         table.status === 'RESERVED',
     ).length;
   }, [tables]);
+
+  const customTables = useMemo(() => {
+    return tables.filter((table) => !tableNames[table.number - 1]);
+  }, [tables]);
+
+  async function addTable() {
+    const number = Number(newTableNumber);
+    const seats = Number(newTableSeats);
+
+    if (!number || number < 1) {
+      alert('Enter table number');
+      return;
+    }
+
+    if (!seats || seats < 1) {
+      alert('Enter seats');
+      return;
+    }
+
+    const res = await fetch(`${API_URL}/tables`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        number,
+        seats,
+        note: newTableNote,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+      alert(data?.message || 'Failed to add table');
+      return;
+    }
+
+    setNewTableNumber('');
+    setNewTableSeats('4');
+    setNewTableNote('');
+    setManageOpen(false);
+    await loadTables();
+  }
+
+  async function saveNote() {
+    if (!noteTable) return;
+
+    const res = await fetch(`${API_URL}/tables/${noteTable.id}/note`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        note: noteText,
+      }),
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || data?.success === false) {
+      alert(data?.message || 'Failed to save note');
+      return;
+    }
+
+    setNoteTable(null);
+    setNoteText('');
+    await loadTables();
+  }
+
+async function deleteTable(table: Table) {
+  const ok = confirm(`Delete Table ${table.number}?`);
+
+  if (!ok) return;
+
+  const res = await fetch(`${API_URL}/tables/${table.id}`, {
+    method: 'DELETE',
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || data?.success === false) {
+    alert(data?.message || 'Cannot delete table');
+    return;
+  }
+
+  await loadTables();
+}
 
   async function openTable(table?: Table) {
     if (!table?.id) return;
@@ -197,18 +279,11 @@ async function loadServiceAlerts() {
       try {
         setMergeLoading(true);
 
-        const res = await fetch(
-          `http://31.57.201.45:3000/tables/${table.id}/merge`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              fromTableId: mergeFromTableId,
-            }),
-          },
-        );
+        const res = await fetch(`${API_URL}/tables/${table.id}/merge`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fromTableId: mergeFromTableId }),
+        });
 
         const result = await res.json();
 
@@ -236,18 +311,11 @@ async function loadServiceAlerts() {
       try {
         setTransferLoading(true);
 
-        const res = await fetch(
-          `http://31.57.201.45:3000/tables/${fromTableId}/transfer`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              toTableId: table.id,
-            }),
-          },
-        );
+        const res = await fetch(`${API_URL}/tables/${fromTableId}/transfer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ toTableId: table.id }),
+        });
 
         const result = await res.json();
 
@@ -284,13 +352,13 @@ async function loadServiceAlerts() {
     setMergeFromId(null);
   }
 
-async function dismissServiceAlert(alertId: string) {
-  await fetch(`http://31.57.201.45:3000/tables/order-logs/${alertId}`, {
-    method: 'DELETE',
-  });
+  async function dismissServiceAlert(alertId: string) {
+    await fetch(`${API_URL}/tables/order-logs/${alertId}`, {
+      method: 'DELETE',
+    });
 
-  await loadServiceAlerts();
-}
+    await loadServiceAlerts();
+  }
 
   function statusStyle(status?: Table['status']) {
     if (status === 'OCCUPIED') {
@@ -333,94 +401,47 @@ async function dismissServiceAlert(alertId: string) {
   }
 
   function groupStyle(color: string) {
-    if (color === 'red') {
-      return 'border-red-500/10 bg-zinc-950/80';
-    }
-
-    if (color === 'blue') {
-      return 'border-blue-500/10 bg-zinc-950/80';
-    }
-
+    if (color === 'red') return 'border-red-500/10 bg-zinc-950/80';
+    if (color === 'blue') return 'border-blue-500/10 bg-zinc-950/80';
     return 'border-emerald-500/10 bg-zinc-950/80';
   }
 
-  function TableCard({
-    name,
-    compact = false,
-  }: {
-    name: string;
-    compact?: boolean;
-  }) {
-    const table = getTableByName(name);
-    const style = statusStyle(table?.status);
+function TableCard({
+  name,
+  table,
+  compact = false,
+}: {
+  name: string;
+  table?: Table;
+  compact?: boolean;
+}) {
+  const realTable = table || getTableByName(name);
+  const style = statusStyle(realTable?.status);
 
-    const isTransferSource = transferFromId === table?.id;
-    const isMergeSource = mergeFromId === table?.id;
-    const isSource = isTransferSource || isMergeSource;
+  const isTransferSource = transferFromId === realTable?.id;
+  const isMergeSource = mergeFromId === realTable?.id;
+  const isSource = isTransferSource || isMergeSource;
+  const isActionMode = Boolean(transferFromId || mergeFromId);
 
-    const isActionMode = Boolean(transferFromId || mergeFromId);
-
-    return (
-      <button
-        onClick={() => openTable(table)}
-        disabled={transferLoading || mergeLoading || isSource}
-        className={`
-          relative overflow-hidden rounded-2xl border
-          backdrop-blur-xl
-          p-4 text-left
-          transition-all duration-300
-          hover:-translate-y-1
-          hover:scale-[1.015]
-          active:scale-[0.98]
-          shadow-2xl
-          disabled:cursor-not-allowed
-          disabled:opacity-50
-          ${
-            transferFromId && !isSource
-              ? 'ring-2 ring-purple-500/40 hover:shadow-purple-500/30'
-              : ''
-          }
-          ${
-            mergeFromId && !isSource
-              ? 'ring-2 ring-blue-500/40 hover:shadow-blue-500/30'
-              : ''
-          }
-          ${
-            isTransferSource
-              ? 'border-purple-500/50 bg-purple-500/10'
-              : isMergeSource
-                ? 'border-blue-500/50 bg-blue-500/10'
-                : style.card
-          }
-          ${style.glow}
-          ${compact ? 'min-h-[118px]' : 'min-h-[132px]'}
-        `}
+  return (
+    <div
+      className={`
+        relative overflow-hidden rounded-2xl border
+        backdrop-blur-xl shadow-2xl
+        ${
+          isTransferSource
+            ? 'border-purple-500/50 bg-purple-500/10'
+            : isMergeSource
+              ? 'border-blue-500/50 bg-blue-500/10'
+              : style.card
+        }
+      `}
+    >
+      <div
+        onClick={() => openTable(realTable)}
+        className="cursor-pointer p-4 text-left transition-all duration-300 hover:-translate-y-1 hover:scale-[1.015]"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent" />
-
-        {transferFromId && !isSource && (
-          <div className="absolute right-3 top-3 z-20 rounded-full bg-purple-500 px-3 py-1 text-[10px] font-black uppercase text-white">
-            Transfer here
-          </div>
-        )}
-
-        {mergeFromId && !isSource && (
-          <div className="absolute right-3 top-3 z-20 rounded-full bg-blue-500 px-3 py-1 text-[10px] font-black uppercase text-white">
-            Merge here
-          </div>
-        )}
-
-        {isTransferSource && (
-          <div className="absolute right-3 top-3 z-20 rounded-full bg-purple-500/20 px-3 py-1 text-[10px] font-black uppercase text-purple-300">
-            Transfer from
-          </div>
-        )}
-
-        {isMergeSource && (
-          <div className="absolute right-3 top-3 z-20 rounded-full bg-blue-500/20 px-3 py-1 text-[10px] font-black uppercase text-blue-300">
-            Merge from
-          </div>
-        )}
 
         <div className="relative z-10">
           <div className="flex items-start justify-between gap-2">
@@ -432,22 +453,27 @@ async function dismissServiceAlert(alertId: string) {
               <div
                 className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider ${style.badge}`}
               >
-                {table?.status || 'AVAILABLE'}
+                {realTable?.status || 'AVAILABLE'}
               </div>
             )}
           </div>
 
           <div className="mt-3 flex items-center gap-2 text-sm text-zinc-300">
             <span className="text-base">👥</span>
-
             <span className="font-semibold">
-              {getGuests(table)} people
+              {getGuests(realTable)} people
             </span>
           </div>
 
-          {table?.selectedPackage && (
+          {realTable?.selectedPackage && (
             <div className="mt-3 inline-flex max-w-full truncate rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-1.5 text-xs font-bold text-yellow-300">
-              {table.selectedPackage}
+              {realTable.selectedPackage}
+            </div>
+          )}
+
+          {realTable?.note && (
+            <div className="mt-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs font-bold text-red-300">
+              ⚠️ {realTable.note}
             </div>
           )}
 
@@ -459,9 +485,33 @@ async function dismissServiceAlert(alertId: string) {
                 : style.label}
           </div>
         </div>
-      </button>
-    );
-  }
+      </div>
+
+      {realTable && table && !transferFromId && !mergeFromId && (
+        <div className="relative z-30 flex gap-2 border-t border-white/10 p-3">
+          <button
+            type="button"
+            onClick={() => {
+              setNoteTable(realTable);
+              setNoteText(realTable.note || '');
+            }}
+            className="flex-1 rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-xs font-black text-zinc-200 hover:bg-white/10"
+          >
+            Note
+          </button>
+
+          <button
+            type="button"
+            onClick={() => deleteTable(realTable)}
+            className="flex-1 rounded-xl border border-red-500/30 bg-red-500/20 px-3 py-2 text-xs font-black text-red-300 hover:bg-red-500/30"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
@@ -483,54 +533,51 @@ async function dismissServiceAlert(alertId: string) {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-4 backdrop-blur-xl">
-              <div className="text-sm text-zinc-500">Total Tables</div>
-              <div className="mt-1 text-3xl font-black">{tables.length}</div>
-            </div>
+         <div className="flex flex-wrap items-stretch justify-end gap-3">
+  <button
+    onClick={() => setManageOpen(true)}
+    className="min-w-[190px] rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4 text-center font-black text-emerald-300 hover:bg-emerald-500/20"
+  >
+    + Add Table
+  </button>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-4 backdrop-blur-xl">
-              <div className="text-sm text-zinc-500">Total People</div>
-              <div className="mt-1 text-3xl font-black text-emerald-400">
-                {totalPeople}
-              </div>
-            </div>
+  <div className="min-w-[190px] rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-4 backdrop-blur-xl">
+    <div className="text-sm text-zinc-500">Total Tables</div>
+    <div className="mt-1 text-3xl font-black">{tables.length}</div>
+  </div>
 
-            <div className="rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-4 backdrop-blur-xl">
-              <div className="text-sm text-zinc-500">Live Status</div>
-              <div className="mt-1 text-2xl font-black text-red-400">
-                {occupiedTables} Active
-              </div>
-            </div>
-          </div>
-        </div>
+  <div className="min-w-[190px] rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-4 backdrop-blur-xl">
+    <div className="text-sm text-zinc-500">Total People</div>
+    <div className="mt-1 text-3xl font-black text-emerald-400">
+      {totalPeople}
+    </div>
+  </div>
 
-        {transferFromId && (
+  <div className="min-w-[190px] rounded-2xl border border-zinc-800 bg-zinc-950/80 px-5 py-4 backdrop-blur-xl">
+    <div className="text-sm text-zinc-500">Live Status</div>
+    <div className="mt-1 text-2xl font-black text-red-400">
+      {occupiedTables} Active
+    </div>
+   </div>
+</div>
+</div>
+
+{transferFromId && (
           <div className="mb-5 rounded-3xl border border-purple-500/30 bg-purple-500/10 p-5 text-purple-300 shadow-2xl shadow-purple-500/10">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xl font-black">
-                  Transfer mode active
-                </div>
-
+                <div className="text-xl font-black">Transfer mode active</div>
                 <div className="mt-1 text-sm text-purple-200/80">
                   From {getTableDisplayName(transferFromId)}. Click any target table to move all menus and orders.
                 </div>
               </div>
 
-              <button
-                onClick={cancelTransfer}
-                className="rounded-xl bg-purple-500 px-4 py-2 font-bold text-white"
-              >
+              <button onClick={cancelTransfer} className="rounded-xl bg-purple-500 px-4 py-2 font-bold text-white">
                 Cancel transfer
               </button>
             </div>
 
-            {transferLoading && (
-              <div className="mt-4 text-sm font-bold text-purple-200">
-                Transferring...
-              </div>
-            )}
+            {transferLoading && <div className="mt-4 text-sm font-bold text-purple-200">Transferring...</div>}
           </div>
         )}
 
@@ -538,84 +585,48 @@ async function dismissServiceAlert(alertId: string) {
           <div className="mb-5 rounded-3xl border border-blue-500/30 bg-blue-500/10 p-5 text-blue-300 shadow-2xl shadow-blue-500/10">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-xl font-black">
-                  Merge mode active
-                </div>
-
+                <div className="text-xl font-black">Merge mode active</div>
                 <div className="mt-1 text-sm text-blue-200/80">
                   From {getTableDisplayName(mergeFromId)}. Click target table to merge both tables.
                 </div>
               </div>
 
-              <button
-                onClick={cancelMerge}
-                className="rounded-xl bg-blue-500 px-4 py-2 font-bold text-white"
-              >
+              <button onClick={cancelMerge} className="rounded-xl bg-blue-500 px-4 py-2 font-bold text-white">
                 Cancel merge
               </button>
             </div>
 
-            {mergeLoading && (
-              <div className="mt-4 text-sm font-bold text-blue-200">
-                Merging...
-              </div>
-            )}
+            {mergeLoading && <div className="mt-4 text-sm font-bold text-blue-200">Merging...</div>}
           </div>
         )}
 
+        {serviceAlerts.length > 0 && (
+          <div className="mb-5 space-y-3">
+            {serviceAlerts.map((alert) => (
+              <div key={alert.id} className="flex items-center justify-between gap-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4">
+                <div>
+                  <div className="font-black text-yellow-300">{alert.itemName}</div>
+                  <div className="text-sm text-yellow-100/80">Table: {alert.tableName}</div>
+                </div>
 
-{serviceAlerts.length > 0 && (
-  <div className="mb-5 space-y-3">
-    {serviceAlerts.map((alert) => (
-     <div
-  key={alert.id}
-  className="flex items-center justify-between gap-4 rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-4"
->
-  <div>
-    <div className="font-black text-yellow-300">
-      {alert.itemName}
-    </div>
-
-    <div className="text-sm text-yellow-100/80">
-      Table: {alert.tableName}
-    </div>
-  </div>
-
-  <button
-    onClick={() => dismissServiceAlert(alert.id)}
-    className="rounded-xl bg-yellow-500 px-4 py-2 font-black text-black"
-  >
-    Done
-  </button>
-</div>
-    ))}
-  </div>
-)}
+                <button onClick={() => dismissServiceAlert(alert.id)} className="rounded-xl bg-yellow-500 px-4 py-2 font-black text-black">
+                  Done
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="space-y-4">
           <div className="grid gap-4 xl:grid-cols-[1fr_0.58fr]">
             {groups.slice(0, 2).map((group) => (
-              <section
-                key={group.title}
-                className={`rounded-3xl border p-4 backdrop-blur-xl ${groupStyle(group.color)}`}
-              >
+              <section key={group.title} className={`rounded-3xl border p-4 backdrop-blur-xl ${groupStyle(group.color)}`}>
                 <div className="mb-4 flex items-center justify-between">
-                  <h2 className="text-xl font-black">
-                    {group.title}
-                  </h2>
-
-                  <div className="text-sm text-zinc-500">
-                    {group.names.length} tables
-                  </div>
+                  <h2 className="text-xl font-black">{group.title}</h2>
+                  <div className="text-sm text-zinc-500">{group.names.length} tables</div>
                 </div>
 
-                <div
-                  className={
-                    group.title === 'B Tables'
-                      ? 'grid grid-cols-2 gap-3'
-                      : 'grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5'
-                  }
-                >
+                <div className={group.title === 'B Tables' ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5'}>
                   {group.names.map((name) => (
                     <TableCard key={name} name={name} />
                   ))}
@@ -625,39 +636,115 @@ async function dismissServiceAlert(alertId: string) {
           </div>
 
           {groups.slice(2).map((group) => (
-            <section
-              key={group.title}
-              className={`rounded-3xl border p-4 backdrop-blur-xl ${groupStyle(group.color)}`}
-            >
+            <section key={group.title} className={`rounded-3xl border p-4 backdrop-blur-xl ${groupStyle(group.color)}`}>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-black">
-                  {group.title}
-                </h2>
-
-                <div className="text-sm text-zinc-500">
-                  {group.names.length} tables
-                </div>
+                <h2 className="text-xl font-black">{group.title}</h2>
+                <div className="text-sm text-zinc-500">{group.names.length} tables</div>
               </div>
 
-              <div
-                className={
-                  group.title === 'C Tables'
-                    ? 'grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6'
-                    : 'grid grid-cols-2 gap-3 md:grid-cols-4'
-                }
-              >
+              <div className={group.title === 'C Tables' ? 'grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6' : 'grid grid-cols-2 gap-3 md:grid-cols-4'}>
                 {group.names.map((name) => (
+                  <TableCard key={name} name={name} compact />
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {customTables.length > 0 && (
+            <section className="rounded-3xl border border-purple-500/10 bg-zinc-950/80 p-4 backdrop-blur-xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-black">Custom Tables</h2>
+                <div className="text-sm text-zinc-500">{customTables.length} tables</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
+                {customTables.map((table) => (
                   <TableCard
-                    key={name}
-                    name={name}
+                    key={table.id}
+                    name={`Table ${table.number}`}
+                    table={table}
                     compact
                   />
                 ))}
               </div>
             </section>
-          ))}
+          )}
         </div>
       </div>
+
+      {manageOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+            <h2 className="text-2xl font-black">Add Table</h2>
+            <p className="mt-1 text-sm text-zinc-500">Create a new restaurant table</p>
+
+            <div className="mt-6 grid gap-3">
+              <input
+                value={newTableNumber}
+                onChange={(e) => setNewTableNumber(e.target.value)}
+                placeholder="Table number, for example 39"
+                className="rounded-2xl border border-white/10 bg-black px-4 py-4 outline-none focus:border-emerald-500"
+              />
+
+              <input
+                value={newTableSeats}
+                onChange={(e) => setNewTableSeats(e.target.value)}
+                placeholder="Seats"
+                className="rounded-2xl border border-white/10 bg-black px-4 py-4 outline-none focus:border-emerald-500"
+              />
+
+              <textarea
+                value={newTableNote}
+                onChange={(e) => setNewTableNote(e.target.value)}
+                placeholder="Note: allergy milk, VIP, birthday..."
+                className="min-h-[120px] rounded-2xl border border-white/10 bg-black px-4 py-4 outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            <div className="mt-6 flex gap-3">
+              <button onClick={addTable} className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-black">
+                Save Table
+              </button>
+
+              <button onClick={() => setManageOpen(false)} className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 font-black text-white">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {noteTable && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur">
+          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+            <h2 className="text-2xl font-black">Table Note</h2>
+            <p className="mt-1 text-sm text-zinc-500">Table {noteTable.number}</p>
+
+            <textarea
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Allergy, VIP, birthday, special request..."
+              className="mt-6 min-h-[160px] w-full rounded-2xl border border-white/10 bg-black px-4 py-4 outline-none focus:border-emerald-500"
+            />
+
+            <div className="mt-6 flex gap-3">
+              <button onClick={saveNote} className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-black">
+                Save Note
+              </button>
+
+              <button
+                onClick={() => {
+                  setNoteTable(null);
+                  setNoteText('');
+                }}
+                className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 font-black text-white"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

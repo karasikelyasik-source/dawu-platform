@@ -98,6 +98,15 @@ export default function LoginPage() {
           >
             {loading ? 'Logging in...' : 'Login'}
           </button>
+
+          <button
+  onClick={() => {
+    window.location.href = '/register';
+  }}
+  className="w-full rounded-2xl border border-zinc-800 bg-black px-4 py-4 font-black text-white hover:border-emerald-500"
+>
+  Create Account
+</button>
         </div>
       </div>
     </main>

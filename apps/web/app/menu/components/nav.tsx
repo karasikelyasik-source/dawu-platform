@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import {
   Settings,
   TableProperties,
@@ -15,6 +16,7 @@ import {
   Keyboard,
   QrCode,
   LogOut,
+  UserCog,
 } from 'lucide-react';
 
 const navItems = [
@@ -65,22 +67,15 @@ export default function Nav() {
             <a
               key={item.href}
               href={item.href}
-              className={`
-                group relative flex shrink-0 items-center gap-2 overflow-hidden rounded-2xl px-4 py-3 text-sm font-black transition-all duration-300
-                ${
-                  active
-                    ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10'
-                    : 'border border-white/5 bg-white/[0.03] text-zinc-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white'
-                }
-              `}
+              className={`group relative flex shrink-0 items-center gap-2 overflow-hidden rounded-2xl px-4 py-3 text-sm font-black transition-all duration-300 ${
+                active
+                  ? 'border border-emerald-500/30 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10'
+                  : 'border border-white/5 bg-white/[0.03] text-zinc-300 hover:border-white/10 hover:bg-white/[0.08] hover:text-white'
+              }`}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent opacity-0 transition group-hover:opacity-100" />
-
               <Icon size={18} className="relative z-10" />
-
-              <span className="relative z-10">
-                {item.label}
-              </span>
+              <span className="relative z-10">{item.label}</span>
             </a>
           );
         })}
@@ -89,14 +84,11 @@ export default function Nav() {
       <div className="relative flex justify-end">
         <button
           onClick={() => setOpen(!open)}
-          className={`
-            flex items-center gap-2 rounded-2xl border px-4 py-3 font-black transition-all duration-300
-            ${
-              open
-                ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10'
-                : 'border-white/10 bg-zinc-950/80 text-zinc-300 hover:bg-white/[0.08] hover:text-white'
-            }
-          `}
+          className={`flex items-center gap-2 rounded-2xl border px-4 py-3 font-black transition-all duration-300 ${
+            open
+              ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10'
+              : 'border-white/10 bg-zinc-950/80 text-zinc-300 hover:bg-white/[0.08] hover:text-white'
+          }`}
         >
           <Settings size={20} />
           <span className="hidden sm:inline">Settings</span>
@@ -108,7 +100,6 @@ export default function Nav() {
               <div className="text-xs font-black uppercase tracking-[0.25em] text-zinc-500">
                 System
               </div>
-
               <div className="mt-1 text-sm text-zinc-300">
                 DaWu POS settings
               </div>
@@ -122,21 +113,19 @@ export default function Nav() {
                 <MonitorCog size={18} />
                 Sessions
               </span>
-
               <span className="text-xs text-zinc-500">CTRL+1</span>
             </a>
 
-<a
-  href="/qr-codes"
-  className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10 hover:text-white"
->
-  <span className="flex items-center gap-3">
-    <QrCode size={18} />
-    QR Codes
-  </span>
-
-  <span className="text-xs text-zinc-500">QR</span>
-</a>
+            <a
+              href="/qr-codes"
+              className="flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold text-zinc-200 transition hover:bg-white/10 hover:text-white"
+            >
+              <span className="flex items-center gap-3">
+                <QrCode size={18} />
+                QR Codes
+              </span>
+              <span className="text-xs text-zinc-500">QR</span>
+            </a>
 
             <a
               href="/hotkeys"
@@ -146,7 +135,6 @@ export default function Nav() {
                 <Keyboard size={18} />
                 Hotkeys
               </span>
-
               <span className="text-xs text-zinc-500">CTRL+H</span>
             </a>
 

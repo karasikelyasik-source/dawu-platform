@@ -87,19 +87,31 @@ export default function TablePage() {
   }
 
   async function loadOrders() {
-    const res = await fetch(`http://31.57.201.45:3000/tables/${tableId}/order-logs`);
+  try {
+    const res = await fetch(
+      `http://31.57.201.45:3000/tables/${tableId}/order-logs`,
+    );
+
     const data = await res.json();
 
+    const list = Array.isArray(data) ? data : [];
+
     setOrders(
-      data.map((item: any) => ({
+      list.map((item: any) => ({
         id: item.id,
         name: item.itemName,
         price: item.price,
         btwRate: item.btwRate ?? 9,
-        createdAt: new Date(item.createdAt).toLocaleTimeString(),
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleTimeString()
+          : '',
       })),
     );
+  } catch (error) {
+    console.error('Failed to load orders:', error);
+    setOrders([]);
   }
+}
 
   async function loadPayments() {
     const res = await fetch('http://31.57.201.45:3000/tables/payments/all');

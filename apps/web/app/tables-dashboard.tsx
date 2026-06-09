@@ -14,6 +14,7 @@ type Table = {
   number: number;
   seats: number;
   status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
+  label?: string | null;
   note?: string | null;
   selectedPackage?: string | null;
   selectedGuests?: number | null;
@@ -188,43 +189,48 @@ export default function TablesDashboard() {
     return tables.filter((table) => !tableNames[table.number - 1]);
   }, [tables]);
 
-  async function addTable() {
-    const number = Number(newTableNumber);
-    const seats = Number(newTableSeats);
+async function addTable() {
+  const label = newTableNumber.trim();
+  const seats = Number(newTableSeats);
 
-    if (!number || number < 1) {
-      alert('Enter table number');
-      return;
-    }
-
-    if (!seats || seats < 1) {
-      alert('Enter seats');
-      return;
-    }
-
-    const res = await fetch(`${API_URL}/tables`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        number,
-        seats,
-        note: newTableNote,
-      }),
-    });
-
-    const data = await res.json().catch(() => null);
-
-    if (!res.ok || data?.success === false) {
-      alert(data?.message || 'Failed to add table');
-      return;
-    }
-
-    setNewTableNumber('');
-    setNewTableSeats('4');
-    setNewTableNote('');
-    setManageOpen(false);
-    await loadTables();
+  if (!label) {
+    alert('Enter table name');
+    return;
   }
+
+  if (!seats || seats < 1) {
+    alert('Enter seats');
+    return;
+  }
+
+  const maxNumber = tables.length
+    ? Math.max(...tables.map((table) => table.number))
+    : 0;
+
+  const res = await fetch(`${API_URL}/tables`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      number: maxNumber + 1,
+      seats,
+      label,
+      note: newTableNote,
+    }),
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok || data?.success === false) {
+    alert(data?.message || 'Failed to add table');
+    return;
+  }
+
+  setNewTableNumber('');
+  setNewTableSeats('4');
+  setNewTableNote('');
+  setManageOpen(false);
+  await loadTables();
+}
 
   async function saveNote() {
     if (!noteTable) return;
@@ -661,7 +667,7 @@ function TableCard({
                 {customTables.map((table) => (
                   <TableCard
                     key={table.id}
-                    name={`Table ${table.number}`}
+                    name={table.label || `Table ${table.number}`}
                     table={table}
                     compact
                   />
@@ -702,9 +708,12 @@ function TableCard({
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button onClick={addTable} className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-black">
-                Save Table
-              </button>
+              <button
+  onClick={addTable}
+  className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-black hover:bg-emerald-400"
+>
+  Save Table
+</button>
 
               <button onClick={() => setManageOpen(false)} className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 font-black text-white">
                 Cancel

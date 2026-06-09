@@ -122,15 +122,17 @@ async deleteTable(id: string) {
 async createTable(data: {
   number: number;
   seats: number;
+  label?: string;
   note?: string;
 }) {
   const table = await this.prisma.table.create({
-    data: {
-      number: data.number,
-      seats: data.seats,
-      note: data.note?.trim() || null,
-      status: 'AVAILABLE',
-    },
+data: {
+  number: data.number,
+  seats: data.seats,
+  label: data.label?.trim() || null,
+  note: data.note?.trim() || null,
+  status: 'AVAILABLE',
+},
   });
 
   await this.createLog({

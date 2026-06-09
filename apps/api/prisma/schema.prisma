@@ -49,6 +49,7 @@ model Table {
   selectedGuests   Int?
   selectedPackages Json?
 
+label String?
   note String?
   
   reservations Reservation[]

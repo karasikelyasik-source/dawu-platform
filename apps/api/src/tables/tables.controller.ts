@@ -20,13 +20,14 @@ export class TablesController {
   }
 
   @Post()
-  createTable(@Body() body: any) {
-    return this.tablesService.createTable({
-      number: Number(body.number),
-      seats: Number(body.seats),
-      note: body.note,
-    });
-  }
+ createTable(@Body() body: any) {
+  return this.tablesService.createTable({
+    number: Number(body.number),
+    seats: Number(body.seats),
+    label: body.label,
+    note: body.note,
+  });
+}
 
   @Get('logs/all')
   findAllLogs() {

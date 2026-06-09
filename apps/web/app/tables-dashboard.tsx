@@ -708,9 +708,10 @@ function TableCard({
             </div>
 
             <div className="mt-6 flex gap-3">
-              <button
+           <button
+  type="button"
   onClick={addTable}
-  className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-black hover:bg-emerald-400"
+  className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"
 >
   Save Table
 </button>

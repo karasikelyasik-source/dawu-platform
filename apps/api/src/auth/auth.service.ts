@@ -97,4 +97,104 @@ await this.prisma.session.updateMany({
       sessionId: session.id,
     };
   }
+    async changeEmail(data: {
+    userId: string;
+    newEmail: string;
+    password: string;
+  }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isValid = await bcrypt.compare(data.password, user.password);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Wrong password');
+    }
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: data.newEmail },
+    });
+
+    if (existing && existing.id !== user.id) {
+      throw new UnauthorizedException('Email already used');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        email: data.newEmail.trim().toLowerCase(),
+      },
+    });
+
+    return {
+      id: updated.id,
+      email: updated.email,
+      role: updated.role,
+    };
+  }
+
+  async changePassword(data: {
+    userId: string;
+    oldPassword: string;
+    newPassword: string;
+  }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isValid = await bcrypt.compare(data.oldPassword, user.password);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Wrong password');
+    }
+
+    const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+      },
+    });
+
+    return {
+      success: true,
+    };
+  }
+
+  async deleteAccount(data: {
+    userId: string;
+    password: string;
+  }) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: data.userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isValid = await bcrypt.compare(data.password, user.password);
+
+    if (!isValid) {
+      throw new UnauthorizedException('Wrong password');
+    }
+
+    await this.prisma.user.delete({
+      where: { id: user.id },
+    });
+
+    return {
+      success: true,
+    };
+  }
 }

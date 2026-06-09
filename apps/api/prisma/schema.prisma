@@ -49,6 +49,8 @@ model Table {
   selectedGuests   Int?
   selectedPackages Json?
 
+  note String?
+  
   reservations Reservation[]
   sessions     TableSession[]
   orderLogs    TableOrderLog[]

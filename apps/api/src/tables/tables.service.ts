@@ -73,6 +73,97 @@ export class TablesService {
     });
   }
 
+async deleteTable(id: string) {
+  const table = await this.prisma.table.findUnique({
+    where: { id },
+    include: {
+      orderLogs: true,
+      payments: true,
+      sessions: true,
+    },
+  });
+
+  if (!table) {
+    return {
+      success: false,
+      message: 'Table not found',
+    };
+  }
+
+  if (table.status === 'OCCUPIED') {
+    return {
+      success: false,
+      message: 'Cannot delete occupied table',
+    };
+  }
+
+  if (
+    table.orderLogs.length > 0 ||
+    table.payments.length > 0 ||
+    table.sessions.length > 0
+  ) {
+    return {
+      success: false,
+      message: 'Cannot delete table with history',
+    };
+  }
+
+  await this.prisma.table.delete({
+    where: { id },
+  });
+
+  return {
+    success: true,
+  };
+}
+
+async createTable(data: {
+  number: number;
+  seats: number;
+  note?: string;
+}) {
+  const table = await this.prisma.table.create({
+    data: {
+      number: data.number,
+      seats: data.seats,
+      note: data.note?.trim() || null,
+      status: 'AVAILABLE',
+    },
+  });
+
+  await this.createLog({
+    tableId: table.id,
+    type: 'TABLE_CREATED',
+    message: `Table ${table.number} created`,
+    afterData: table as any,
+  });
+
+  return table;
+}
+
+async updateTableNote(id: string, note?: string) {
+  const before = await this.prisma.table.findUnique({
+    where: { id },
+  });
+
+  const table = await this.prisma.table.update({
+    where: { id },
+    data: {
+      note: note?.trim() || null,
+    },
+  });
+
+  await this.createLog({
+    tableId: id,
+    type: 'TABLE_NOTE_CHANGED',
+    message: 'Table note changed',
+    beforeData: before as any,
+    afterData: table as any,
+  });
+
+  return table;
+}
+
   findPendingKitchenTickets() {
     return this.prisma.kitchenTicket.findMany({
       where: {

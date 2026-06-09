@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req } from '@nestjs/common';
+import { Body, Controller, Patch, Post, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from './auth.service';
 
@@ -24,5 +24,20 @@ export class AuthController {
       ip,
       userAgent,
     });
+  }
+
+  @Patch('account/email')
+  changeEmail(@Body() body: any) {
+    return this.authService.changeEmail(body);
+  }
+
+  @Patch('account/password')
+  changePassword(@Body() body: any) {
+    return this.authService.changePassword(body);
+  }
+
+ @Post('account/delete')
+deleteAccount(@Body() body: any) {
+  return this.authService.deleteAccount(body);
   }
 }

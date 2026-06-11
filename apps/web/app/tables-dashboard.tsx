@@ -128,20 +128,22 @@ export default function TablesDashboard() {
     }
   }
 
-  useEffect(() => {
-    setTransferFromId(sessionStorage.getItem('dawu-transfer-from-table-id'));
-    setMergeFromId(sessionStorage.getItem('dawu-merge-from-table-id'));
+useEffect(() => {
+  setTransferFromId(sessionStorage.getItem('dawu-transfer-from-table-id'));
+  setMergeFromId(sessionStorage.getItem('dawu-merge-from-table-id'));
 
-    loadTables();
-    loadServiceAlerts();
+  loadTables();
+  loadServiceAlerts();
 
-    const interval = setInterval(() => {
+  const interval = setInterval(() => {
+    if (!manageOpen && !noteTable) {
       loadTables();
       loadServiceAlerts();
-    }, 2000);
+    }
+  }, 2000);
 
-    return () => clearInterval(interval);
-  }, []);
+  return () => clearInterval(interval);
+}, [manageOpen, noteTable]);
 
   function getTableByName(name: string) {
     const index = tableNames.indexOf(name);
@@ -256,7 +258,7 @@ async function addTable() {
   }
 
 async function deleteTable(table: Table) {
-  const ok = confirm(`Delete Table ${table.number}?`);
+  const ok = confirm(`Delete ${table.label || `Table ${table.number}`}?`);
 
   if (!ok) return;
 
@@ -270,6 +272,10 @@ async function deleteTable(table: Table) {
     alert(data?.message || 'Cannot delete table');
     return;
   }
+
+  setNoteTable(null);
+  setNoteText('');
+  setManageOpen(false);
 
   await loadTables();
 }
@@ -708,7 +714,7 @@ function TableCard({
             </div>
 
             <div className="mt-6 flex gap-3">
-           <button
+         <button
   type="button"
   onClick={addTable}
   className="flex-1 rounded-2xl bg-emerald-500 px-5 py-4 font-black text-white shadow-lg shadow-emerald-500/20 transition hover:bg-emerald-400"

@@ -6,6 +6,7 @@ import { ReservationsModule } from './reservations/reservations.module';
 import { MenuModule } from './menu/menu.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminSessionsModule } from './admin-sessions/admin-sessions.module';
+import { TakeAwayModule } from './take-away/take-away.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AdminSessionsModule } from './admin-sessions/admin-sessions.module';
     MenuModule,
     AuthModule,
     AdminSessionsModule,
+    TakeAwayModule,
   ],
 })
 export class AppModule {}

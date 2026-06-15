@@ -75,6 +75,7 @@ export default function TablesDashboard() {
 
   const [noteTable, setNoteTable] = useState<Table | null>(null);
   const [noteText, setNoteText] = useState('');
+  const [deleteTableTarget, setDeleteTableTarget] = useState<Table | null>(null);
 
   async function loadTables() {
     try {
@@ -231,7 +232,7 @@ async function addTable() {
   setNewTableSeats('4');
   setNewTableNote('');
   setManageOpen(false);
-  await loadTables();
+  loadTables();
 }
 
   async function saveNote() {
@@ -258,9 +259,6 @@ async function addTable() {
   }
 
 async function deleteTable(table: Table) {
-  const ok = confirm(`Delete ${table.label || `Table ${table.number}`}?`);
-
-  if (!ok) return;
 
   const res = await fetch(`${API_URL}/tables/${table.id}`, {
     method: 'DELETE',
@@ -276,8 +274,9 @@ async function deleteTable(table: Table) {
   setNoteTable(null);
   setNoteText('');
   setManageOpen(false);
+  setDeleteTableTarget(null);
 
-  await loadTables();
+loadTables();
 }
 
   async function openTable(table?: Table) {
@@ -514,7 +513,7 @@ function TableCard({
 
           <button
             type="button"
-            onClick={() => deleteTable(realTable)}
+            onClick={() => setDeleteTableTarget(realTable)}
             className="flex-1 rounded-xl border border-red-500/30 bg-red-500/20 px-3 py-2 text-xs font-black text-red-300 hover:bg-red-500/30"
           >
             Delete
@@ -761,6 +760,39 @@ function TableCard({
           </div>
         </div>
       )}
+      {deleteTableTarget && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+    <div className="w-full max-w-md rounded-3xl border border-red-500/20 bg-zinc-950 p-6 shadow-2xl">
+      <h2 className="text-2xl font-black text-white">
+        Delete Table
+      </h2>
+
+      <p className="mt-3 text-zinc-400">
+        Are you sure you want to delete
+        <span className="ml-1 font-black text-red-400">
+          {deleteTableTarget.label || `Table ${deleteTableTarget.number}`}
+        </span>
+        ?
+      </p>
+
+      <div className="mt-6 flex gap-3">
+        <button
+          onClick={() => deleteTable(deleteTableTarget)}
+          className="flex-1 rounded-2xl bg-red-500 px-5 py-4 font-black text-white hover:bg-red-400"
+        >
+          Delete
+        </button>
+
+        <button
+          onClick={() => setDeleteTableTarget(null)}
+          className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-4 font-black text-white"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </main>
   );
 }

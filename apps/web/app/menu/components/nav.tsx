@@ -16,11 +16,11 @@ import {
   Keyboard,
   QrCode,
   LogOut,
-  UserCog,
+  ShoppingBag,
 } from 'lucide-react';
-
 const navItems = [
   { href: '/', label: 'Tables', icon: TableProperties },
+  { href: '/take-away', label: 'Take Away', icon: ShoppingBag },
   { href: '/menu', label: 'Menu', icon: Menu },
   { href: '/packages', label: 'Packages', icon: Package },
   { href: '/logs', label: 'Logs', icon: ScrollText },

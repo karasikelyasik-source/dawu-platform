@@ -399,3 +399,33 @@ model TakeAwayItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+model TakeAwayOrder {
+  id String @id @default(cuid())
+
+  orderNumber Int
+  method String
+  total Float
+  paid Float?
+  change Float?
+  tip Float @default(0)
+
+  items TakeAwayOrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TakeAwayOrderItem {
+  id String @id @default(cuid())
+
+  orderId String
+  order TakeAwayOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  itemId String?
+  itemName String
+  price Float
+  quantity Int @default(1)
+  btwRate Float @default(9)
+
+  createdAt DateTime @default(now())
+}

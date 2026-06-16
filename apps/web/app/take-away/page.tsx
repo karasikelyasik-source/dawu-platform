@@ -306,15 +306,37 @@ export default function TakeAwayPage() {
     setPaymentOpen(true);
   }
 
-  async function confirmPayment() {
-    if (paymentMethod === 'CASH' && paid < total) {
-      alert('Paid amount is too low');
-      return;
-    }
+async function confirmPayment() {
+  if (paymentMethod === 'CASH' && paid < total) {
+    alert('Paid amount is too low');
+    return;
+  }
 
-    const receiptPrinterRes = await fetch(`${API_URL}/menu/receipt-printer`).catch(
-      () => null,
-    );
+  try {
+    await fetch(`${API_URL}/take-away/orders`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        method: paymentMethod,
+        total,
+        paid,
+        change,
+        tip,
+        items: cart.map((item) => ({
+          itemId: item.id,
+          itemName: item.name,
+          quantity: item.qty,
+          price: item.price,
+          btwRate: item.btwRate,
+        })),
+      }),
+    });
+
+    const receiptPrinterRes = await fetch(
+      `${API_URL}/menu/receipt-printer`,
+    ).catch(() => null);
 
     const receiptPrinter = receiptPrinterRes
       ? await receiptPrinterRes.json().catch(() => null)
@@ -325,8 +347,8 @@ export default function TakeAwayPage() {
       selectedPackages: [],
       orders: cart.map((item) => ({
         itemName: item.name,
-        price: item.price * item.qty,
         quantity: item.qty,
+        price: item.price * item.qty,
       })),
       paymentMethod,
       paid,
@@ -335,14 +357,23 @@ export default function TakeAwayPage() {
     });
 
     clearOrder();
+
+    alert('Order saved successfully');
+  } catch (error) {
+    console.error(error);
+    alert('Failed to save order');
   }
+}
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
       <div className="mx-auto w-full max-w-[1850px] px-4 py-5 lg:px-6">
         <Nav />
 
-        <div className="mt-6 grid grid-cols-[270px_minmax(0,1fr)_430px] gap-5">
+       <div
+  className="mt-6 grid gap-5"
+  style={{ gridTemplateColumns: '270px minmax(0, 1fr) 430px' }}
+>
           <aside className="flex h-[760px] flex-col rounded-3xl border border-white/10 bg-zinc-950/80 p-4 shadow-2xl">
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-2xl font-black">Categories</h2>
@@ -455,23 +486,22 @@ export default function TakeAwayPage() {
               {activeItems.map((item) => (
                 <div
                   key={item.id}
-                  className="group rounded-3xl border border-white/10 bg-black/70 p-3 transition hover:border-emerald-500/40 hover:bg-emerald-500/[0.04]"
+                 className="group rounded-3xl border border-white/10 bg-black/70 p-2 transition hover:border-emerald-500/40 hover:bg-emerald-500/[0.04]"
                 >
                   <button
                     type="button"
                     onClick={() => addToCart(item)}
                     className="w-full text-left"
                   >
-                    <div className="flex h-[155px] items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-emerald-500/20 via-zinc-900 to-black">
-                      <Box size={56} className="text-emerald-300" />
-                    </div>
+                  <div className="flex min-h-[150px] flex-col items-center justify-center rounded-2xl border border-white/10 bg-black/60 px-4 py-5 text-center">
+  <div className="text-xl font-black leading-tight">
+    {item.name}
+  </div>
 
-                    <div className="px-3 pb-3 pt-5 text-center">
-                      <div className="text-xl font-black">{item.name}</div>
-                      <div className="mt-3 text-2xl font-black text-emerald-400">
-                        €{Number(item.price || 0).toFixed(2)}
-                      </div>
-                    </div>
+  <div className="mt-4 text-3xl font-black text-emerald-400">
+    €{Number(item.price || 0).toFixed(2)}
+  </div>
+</div>
                   </button>
 
                   {manageMode && (
@@ -495,15 +525,6 @@ export default function TakeAwayPage() {
                   )}
                 </div>
               ))}
-
-              <button
-                type="button"
-                onClick={openAddItem}
-                className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-dashed border-white/20 bg-black/30 text-emerald-300 transition hover:border-emerald-500/50 hover:bg-emerald-500/10"
-              >
-                <Plus size={40} />
-                <span className="mt-3 text-xl font-black">Add Item</span>
-              </button>
             </div>
           </section>
 

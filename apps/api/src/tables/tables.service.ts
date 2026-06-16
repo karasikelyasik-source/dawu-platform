@@ -625,12 +625,6 @@ async transferTable(fromTableId: string, toTableId: string) {
       },
     });
 
-   await this.prisma.payment.deleteMany({
-  where: {
-    tableId: id,
-  },
-});
-
 await this.prisma.tableOrderLog.deleteMany({
   where: {
     tableId: id,

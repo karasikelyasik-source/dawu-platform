@@ -69,6 +69,8 @@ export default function TablePage() {
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
   const [paidAmount, setPaidAmount] = useState('');
   const [tipAmount, setTipAmount] = useState('');
+  const [discountType, setDiscountType] = useState<'EURO' | 'PERCENT'>('EURO');
+  const [discountValue, setDiscountValue] = useState('');
 
   async function loadTable() {
     const res = await fetch(`http://31.57.201.45:3000/tables/${tableId}`);
@@ -199,12 +201,19 @@ export default function TablePage() {
 
   const total = packageTotal + ordersTotal;
 
+  const discount =
+  discountType === 'EURO'
+    ? Number(discountValue || 0)
+    : total * (Number(discountValue || 0) / 100);
+
+const finalTotal = Math.max(0, total - discount);
+
   const paidAlready = payments.reduce(
     (sum, payment) => sum + Number(payment.total || 0),
     0,
   );
 
-  const remaining = Math.max(0, total - paidAlready);
+ const remaining = Math.max(0, finalTotal - paidAlready);
 
 const paid = Number(paidAmount || 0);
 const tip = Number(tipAmount || 0);
@@ -288,6 +297,8 @@ async function printReceiptAgain() {
     setPaymentOpen(false);
     setPaidAmount('');
     setTipAmount('');
+    setDiscountValue('');
+setDiscountType('EURO');
   }
 
   function calculateBtw(rate: number) {
@@ -701,6 +712,61 @@ async function printReceiptAgain() {
                   <span>Total</span>
                   <span>€{total.toFixed(2)}</span>
                 </div>
+
+
+<div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+  <div className="mb-2 text-sm font-bold text-red-300">
+    Discount
+  </div>
+
+  <div className="mb-2 grid grid-cols-2 gap-2">
+    <button
+      type="button"
+      onClick={() => setDiscountType('EURO')}
+      className={`rounded-xl px-3 py-2 text-sm font-bold ${
+        discountType === 'EURO'
+          ? 'bg-red-500 text-white'
+          : 'bg-zinc-900 text-zinc-300'
+      }`}
+    >
+      €
+    </button>
+
+    <button
+      type="button"
+      onClick={() => setDiscountType('PERCENT')}
+      className={`rounded-xl px-3 py-2 text-sm font-bold ${
+        discountType === 'PERCENT'
+          ? 'bg-red-500 text-white'
+          : 'bg-zinc-900 text-zinc-300'
+      }`}
+    >
+      %
+    </button>
+  </div>
+
+  <input
+    type="number"
+    placeholder="Discount amount"
+    value={discountValue}
+    onChange={(e) => setDiscountValue(e.target.value)}
+    className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3"
+  />
+</div>
+
+{discount > 0 && (
+  <>
+    <div className="flex items-center justify-between text-red-400">
+      <span>Discount</span>
+      <span>-€{discount.toFixed(2)}</span>
+    </div>
+
+    <div className="flex items-center justify-between font-bold text-green-400">
+      <span>Total after discount</span>
+      <span>€{finalTotal.toFixed(2)}</span>
+    </div>
+  </>
+)}
 
                 <div className="flex items-center justify-between text-blue-400">
                   <span>Paid already</span>

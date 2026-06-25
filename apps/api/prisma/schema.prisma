@@ -332,6 +332,7 @@ model Payment {
   paid      Float?
   change    Float?
   tip       Float @default(0)
+  discount Float @default(0)
 
   createdAt DateTime @default(now())
 }

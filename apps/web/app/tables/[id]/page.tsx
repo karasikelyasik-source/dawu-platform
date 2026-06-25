@@ -271,20 +271,21 @@ async function printReceiptAgain() {
   async function confirmPayment() {
     if (remaining <= 0 || amountToApply <= 0) return;
 
-    await fetch(`http://31.57.201.45:3000/tables/${tableId}/pay`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tableNumber: table?.number,
-        method: paymentMethod,
-        total: amountToApply,
-        paid: paymentMethod === 'CASH' ? paymentInput : amountToApply,
-        change: paymentMethod === 'CASH' ? change : 0,
-        tip,
-      }),
-    });
+   await fetch(`http://31.57.201.45:3000/tables/${tableId}/pay`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    tableNumber: table?.number,
+    method: paymentMethod,
+    total: amountToApply,
+    paid: paymentMethod === 'CASH' ? paymentInput : amountToApply,
+    change: paymentMethod === 'CASH' ? change : 0,
+    tip,
+    discount,
+  }),
+});
 
     await loadPayments();
 

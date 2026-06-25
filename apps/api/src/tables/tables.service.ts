@@ -311,6 +311,7 @@ async createPayment(data: {
   paid?: number;
   change?: number;
   tip?: number;
+  discount?: number;
 }) {
   const payment = await this.prisma.payment.create({
     data,

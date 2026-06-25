@@ -64,6 +64,7 @@ export class TablesController {
       paid: body.paid,
       change: body.change,
       tip: body.tip,
+      discount: body.discount,
     });
   }
 

@@ -13,6 +13,7 @@ type Payment = {
   paid?: number;
   change?: number;
   tip?: number;
+  discount?: number;
   createdAt: string;
 };
 
@@ -83,20 +84,32 @@ export default function RevenuePage() {
     });
   }, [payments, filter]);
 
-  const totalRevenue = useMemo(() => {
-    return filteredPayments.reduce((sum, item) => sum + item.total, 0);
-  }, [filteredPayments]);
+const totalRevenue = useMemo(() => {
+  return filteredPayments.reduce(
+    (sum, item) =>
+      sum + item.total - (item.discount || 0) + (item.tip || 0),
+    0,
+  );
+}, [filteredPayments]);
 
   const cashRevenue = useMemo(() => {
     return filteredPayments
       .filter((item) => item.method === 'CASH')
-      .reduce((sum, item) => sum + item.total, 0);
+      .reduce(
+  (sum, item) =>
+    sum + item.total - (item.discount || 0) + (item.tip || 0),
+  0,
+);
   }, [filteredPayments]);
 
   const cardRevenue = useMemo(() => {
     return filteredPayments
       .filter((item) => item.method === 'CARD')
-      .reduce((sum, item) => sum + item.total, 0);
+      .reduce(
+  (sum, item) =>
+    sum + item.total - (item.discount || 0) + (item.tip || 0),
+  0,
+);
   }, [filteredPayments]);
 
   const totalTips = useMemo(() => {
@@ -112,6 +125,10 @@ function exportRevenueExcel() {
     Paid: item.paid ? Number(item.paid.toFixed(2)) : '',
     Change: item.change ? Number(item.change.toFixed(2)) : '',
     Tip: Number((item.tip || 0).toFixed(2)),
+    Discount: Number((item.discount || 0).toFixed(2)),
+Net: Number(
+  (item.total - (item.discount || 0) + (item.tip || 0)).toFixed(2),
+),
   }));
 
   const summary = [
@@ -296,9 +313,19 @@ function exportRevenueExcel() {
                       {item.method === 'CARD' ? 'PIN' : 'CASH'}
                     </div>
 
-                    <div className="text-xl font-black text-green-400">
-                      €{item.total.toFixed(2)}
-                    </div>
+                   <div className="text-xl font-black text-green-400">
+  €{(
+    item.total -
+    (item.discount || 0) +
+    (item.tip || 0)
+  ).toFixed(2)}
+</div>
+
+{(item.discount || 0) > 0 && (
+  <div className="mt-1 text-sm text-red-400">
+    Discount -€{(item.discount || 0).toFixed(2)}
+  </div>
+)}
 
                     {(item.tip || 0) > 0 && (
                       <div className="mt-1 text-sm text-yellow-400">

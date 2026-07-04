@@ -63,10 +63,12 @@ label String?
 }
 
 model Reservation {
-  id     String @id @default(cuid())
-  name   String
-  phone  String
-  guests Int
+  id      String @id @default(cuid())
+  name    String
+  phone   String
+  email   String?
+  message String?
+  guests  Int
 
   startTime DateTime
   endTime   DateTime

@@ -453,26 +453,3 @@ model SystemLog {
 
   createdAt DateTime @default(now())
 }
-model SystemLog {
-  id String @id @default(cuid())
-
-  type String
-  level String @default("INFO")
-
-  message String
-
-  tableId String?
-  tableNumber Int?
-
-  userId String?
-  userEmail String?
-
-  ip String?
-  userAgent String?
-
-  beforeData Json?
-  afterData Json?
-  metadata Json?
-
-  createdAt DateTime @default(now())
-}

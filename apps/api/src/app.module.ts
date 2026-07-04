@@ -7,17 +7,19 @@ import { MenuModule } from './menu/menu.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminSessionsModule } from './admin-sessions/admin-sessions.module';
 import { TakeAwayModule } from './take-away/take-away.module';
+import { SystemLogsModule } from './system-logs/system-logs.module';
 
 @Module({
-  imports: [
-    TablesModule,
-    SessionsModule,
-    OrdersModule,
-    ReservationsModule,
-    MenuModule,
-    AuthModule,
-    AdminSessionsModule,
-    TakeAwayModule,
-  ],
+imports: [
+  TablesModule,
+  SessionsModule,
+  OrdersModule,
+  ReservationsModule,
+  MenuModule,
+  AuthModule,
+  AdminSessionsModule,
+  TakeAwayModule,
+  SystemLogsModule,
+],
 })
 export class AppModule {}

@@ -3,14 +3,16 @@ import { ReactNode } from 'react';
 type Props = {
   children: ReactNode;
   className?: string;
+  id?: string;
 };
 
 export default function Section({
   children,
   className = '',
+  id,
 }: Props) {
   return (
-    <section className={`py-28 ${className}`}>
+    <section id={id} className={`py-28 ${className}`}>
       {children}
     </section>
   );

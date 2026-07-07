@@ -14,6 +14,10 @@ type Reservation = {
   endTime: string;
   status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW';
   tableId?: string | null;
+  table?: {
+  id: string;
+  number: number;
+} | null;
 };
 
 const API_URL = 'http://31.57.201.45:3000';
@@ -56,6 +60,20 @@ export default function ReservationsPage() {
   useEffect(() => {
     loadReservations();
   }, [filter]);
+
+async function assignTable(id: string) {
+  const tableId = prompt('Paste table ID for this reservation');
+
+  if (!tableId) return;
+
+  await fetch(`${API_URL}/reservations/${id}/assign-table`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tableId }),
+  });
+
+  await loadReservations();
+}
 
   const grouped = useMemo(() => {
     return reservations.reduce<Record<string, Reservation[]>>(
@@ -211,6 +229,12 @@ export default function ReservationsPage() {
                       >
                         Cancel
                       </button>
+                      <button
+  onClick={() => assignTable(reservation.id)}
+  className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 font-bold text-amber-300"
+>
+  Assign Table
+</button>
                     </div>
                   </div>
                 </div>

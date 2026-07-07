@@ -66,4 +66,16 @@ export class ReservationsService {
       data: { status },
     });
   }
+  assignTable(id: string, tableId: string) {
+  return this.prisma.reservation.update({
+    where: { id },
+    data: {
+      tableId,
+      status: 'CONFIRMED',
+    },
+    include: {
+      table: true,
+    },
+  });
+}
 }

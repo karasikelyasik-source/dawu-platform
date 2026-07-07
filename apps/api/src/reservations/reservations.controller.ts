@@ -40,4 +40,14 @@ export class ReservationsController {
       body.status,
     );
   }
+  @Patch(':id/assign-table')
+assignTable(
+  @Param('id') id: string,
+  @Body() body: any,
+) {
+  return this.reservationsService.assignTable(
+    id,
+    body.tableId,
+  );
+}
 }

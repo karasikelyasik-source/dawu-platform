@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { AdminSessionsModule } from './admin-sessions/admin-sessions.module';
 import { TakeAwayModule } from './take-away/take-away.module';
 import { SystemLogsModule } from './system-logs/system-logs.module';
+import { PublicReservationsModule } from './public-reservations/public-reservations.module';
 
 @Module({
 imports: [
@@ -20,6 +21,7 @@ imports: [
   AdminSessionsModule,
   TakeAwayModule,
   SystemLogsModule,
+  PublicReservationsModule,
 ],
 })
 export class AppModule {}

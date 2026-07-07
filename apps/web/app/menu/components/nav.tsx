@@ -17,6 +17,7 @@ import {
   QrCode,
   LogOut,
   ShoppingBag,
+  CalendarDays,
 } from 'lucide-react';
 const navItems = [
   { href: '/', label: 'Tables', icon: TableProperties },
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/printers', label: 'Printers', icon: Printer },
   { href: '/tips', label: 'Tips', icon: HandCoins },
   { href: '/revenue', label: 'Revenue', icon: BarChart3 },
+  { href: '/reservations', label: 'Reservations', icon: CalendarDays },
 ];
 
 export default function Nav() {

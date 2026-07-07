@@ -165,7 +165,14 @@ async function assignTable(id: string) {
                             {reservation.guests}
                           </span>
                         </div>
-
+{reservation.table && (
+  <div>
+    Table:{' '}
+    <span className="text-amber-300">
+      {reservation.table.number}
+    </span>
+  </div>
+)}
                         <div>
                           Phone:{' '}
                           <span className="text-white">
@@ -229,12 +236,21 @@ async function assignTable(id: string) {
                       >
                         Cancel
                       </button>
-                      <button
-  onClick={() => assignTable(reservation.id)}
-  className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 font-bold text-amber-300"
->
-  Assign Table
-</button>
+{reservation.table ? (
+  <button
+    disabled
+    className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 font-bold text-amber-300 opacity-60"
+  >
+    Table {reservation.table.number}
+  </button>
+) : (
+  <button
+    onClick={() => assignTable(reservation.id)}
+    className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 font-bold text-amber-300"
+  >
+    Assign Table
+  </button>
+)}
                     </div>
                   </div>
                 </div>

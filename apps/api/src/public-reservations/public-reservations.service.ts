@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class PublicReservationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
-  create(data: {
+  async create(data: {
     name: string;
     phone: string;
     email?: string;
@@ -17,7 +21,7 @@ export class PublicReservationsService {
     const startTime = new Date(`${data.date}T${data.time}:00`);
     const endTime = new Date(startTime.getTime() + 2.5 * 60 * 60 * 1000);
 
-    return this.prisma.reservation.create({
+    const reservation = await this.prisma.reservation.create({
       data: {
         name: data.name,
         phone: data.phone,
@@ -29,5 +33,9 @@ export class PublicReservationsService {
         status: 'PENDING',
       },
     });
+
+    await this.mailService.sendNewReservationEmail(data);
+
+    return reservation;
   }
 }

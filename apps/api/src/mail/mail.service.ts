@@ -20,6 +20,8 @@ export class MailService {
     time: string;
     message?: string;
   }) {
+    console.log('📧 Sending reservation email...', data);
+
     await this.transporter.sendMail({
       from: `"DaWu Reservations" <${process.env.GMAIL_USER}>`,
       to: process.env.RESTAURANT_EMAIL,
@@ -36,5 +38,7 @@ Time: ${data.time}
 Message: ${data.message || '-'}
       `,
     });
+
+    console.log('✅ Reservation email sent');
   }
 }

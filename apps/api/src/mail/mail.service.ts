@@ -82,19 +82,19 @@ DaWu Sushi Fusion
       text: `
 Dear ${data.name},
 
-Thank you for your reservation request at DaWu Sushi Fusion.
+Thank you for your reservation at DaWu Sushi Fusion.
 
-We have received your request:
+Your reservation is confirmed.
 
 Guests: ${data.guests}
 Date: ${data.date}
 Time: ${data.time}
 
-Your reservation is currently pending. Our team will contact you if confirmation or changes are needed.
+We look forward to welcoming you.
 
 Kind regards,
 DaWu Sushi Fusion
-      `,
+`,
     });
   }
 }

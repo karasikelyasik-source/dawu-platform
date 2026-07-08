@@ -40,6 +40,38 @@ Message: ${data.message || '-'}
     });
   }
 
+async sendReservationCancelledEmail(data: {
+  name: string;
+  email?: string | null;
+  startTime: Date;
+  guests: number;
+}) {
+  if (!data.email) return;
+
+  await this.transporter.sendMail({
+    from: `"DaWu Sushi Fusion" <${process.env.GMAIL_USER}>`,
+    to: data.email,
+    subject: 'Your reservation at DaWu has been cancelled',
+    text: `
+Dear ${data.name},
+
+Your reservation at DaWu Sushi Fusion has been cancelled.
+
+Guests: ${data.guests}
+Date: ${data.startTime.toLocaleDateString('nl-NL')}
+Time: ${data.startTime.toLocaleTimeString('nl-NL', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })}
+
+If this was a mistake, please contact us.
+
+Kind regards,
+DaWu Sushi Fusion
+    `,
+  });
+}
+
   async sendCustomerReservationEmail(data: ReservationEmailData) {
     if (!data.email) return;
 

@@ -30,7 +30,7 @@ export class PublicReservationsService {
         guests: Number(data.guests),
         startTime,
         endTime,
-        status: 'PENDING',
+        status: 'CONFIRMED',
       },
     });
 

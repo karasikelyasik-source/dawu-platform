@@ -46,7 +46,12 @@ async sendReservationCancelledEmail(data: {
   startTime: Date;
   guests: number;
 }) {
-  if (!data.email) return;
+  console.log('Cancellation email function called:', data.email);
+
+  if (!data.email) {
+    console.log('No email, cancellation email skipped');
+    return;
+  }
 
   await this.transporter.sendMail({
     from: `"DaWu Sushi Fusion" <${process.env.GMAIL_USER}>`,
@@ -70,6 +75,8 @@ Kind regards,
 DaWu Sushi Fusion
     `,
   });
+
+  console.log('Cancellation email sent');
 }
 
   async sendCustomerReservationEmail(data: ReservationEmailData) {

@@ -61,15 +61,37 @@ export class ReservationsService {
     });
   }
 
-  updateStatus(
-    id: string,
-    status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW',
-  ) {
-    return this.prisma.reservation.update({
-      where: { id },
-      data: { status },
+  
+async updateStatus(
+  id: string,
+  status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW',
+) {
+  console.log('Reservation status update:', id, status);
+
+  const reservation = await this.prisma.reservation.update({
+    where: { id },
+    data: { status },
+  });
+
+  console.log('Reservation updated:', {
+    name: reservation.name,
+    email: reservation.email,
+    status: reservation.status,
+  });
+
+  if (status === 'CANCELLED') {
+    console.log('Trying to send cancellation email to:', reservation.email);
+
+    await this.mailService.sendReservationCancelledEmail({
+      name: reservation.name,
+      email: reservation.email,
+      startTime: reservation.startTime,
+      guests: reservation.guests,
     });
   }
+
+  return reservation;
+}
   assignTable(id: string, tableId: string) {
   return this.prisma.reservation.update({
     where: { id },

@@ -35,7 +35,9 @@ export class PublicReservationsService {
     });
 
     await this.mailService.sendNewReservationEmail(data);
-
+if (data.email) {
+  await this.mailService.sendCustomerReservationEmail(data);
+}
     return reservation;
   }
 }

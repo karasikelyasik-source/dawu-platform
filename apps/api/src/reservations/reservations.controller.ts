@@ -50,4 +50,13 @@ assignTable(
     body.tableId,
   );
 }
+@Get('scan/:token')
+scanReservation(@Param('token') token: string) {
+  return this.reservationsService.findByQrToken(token);
+}
+
+@Post('scan/:token/check-in')
+checkInReservation(@Param('token') token: string) {
+  return this.reservationsService.checkInByQrToken(token);
+}
 }

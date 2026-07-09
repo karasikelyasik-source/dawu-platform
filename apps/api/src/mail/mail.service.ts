@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+import * as QRCode from 'qrcode';
 
 type ReservationEmailData = {
   name: string;
@@ -9,6 +10,7 @@ type ReservationEmailData = {
   date: string;
   time: string;
   message?: string;
+  qrToken?: string;  
 };
 
 @Injectable()
@@ -106,6 +108,15 @@ Message: ${data.message || '-'}
   async sendCustomerReservationEmail(data: ReservationEmailData) {
     if (!data.email) return;
 
+const checkInUrl = `${process.env.RESTAURANT_WEBSITE_URL || 'http://31.57.201.45:3002'}/reservation/check-in/${data.qrToken}`;
+
+const qrCodeDataUrl = data.qrToken
+  ? await QRCode.toDataURL(checkInUrl, {
+      width: 220,
+      margin: 2,
+    })
+  : '';
+
     const html = this.layout(
       'Reservation confirmed',
       `
@@ -117,6 +128,19 @@ Message: ${data.message || '-'}
 ${this.row('Guests', data.guests)}
 ${this.row('Date', data.date)}
 ${this.row('Time', data.time)}
+
+${
+  qrCodeDataUrl
+    ? `
+      <div style="margin-top:24px;text-align:center;background:#ffffff;border-radius:20px;padding:20px;">
+        <img src="${qrCodeDataUrl}" alt="Reservation QR Code" width="220" style="display:block;margin:0 auto;" />
+        <div style="margin-top:12px;color:#111;font-size:13px;font-weight:700;">
+          Show this QR code at the restaurant
+        </div>
+      </div>
+    `
+    : ''
+}
 
 <p style="margin:24px 0 0;color:#d0d0d0;font-size:16px;line-height:1.7;">
   We look forward to welcoming you.

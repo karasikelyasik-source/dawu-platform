@@ -104,4 +104,51 @@ async updateStatus(
     },
   });
 }
+findByQrToken(qrToken: string) {
+  return this.prisma.reservation.findUnique({
+    where: { qrToken },
+    include: {
+      table: true,
+    },
+  });
+}
+
+async checkInByQrToken(qrToken: string) {
+  const reservation = await this.prisma.reservation.findUnique({
+    where: { qrToken },
+    include: {
+      table: true,
+    },
+  });
+
+  if (!reservation) {
+    return {
+      success: false,
+      message: 'Reservation not found',
+    };
+  }
+
+  if (reservation.checkedInAt) {
+    return {
+      success: false,
+      message: 'Reservation already checked in',
+      reservation,
+    };
+  }
+
+  const updated = await this.prisma.reservation.update({
+    where: { id: reservation.id },
+    data: {
+      checkedInAt: new Date(),
+    },
+    include: {
+      table: true,
+    },
+  });
+
+  return {
+    success: true,
+    reservation: updated,
+  };
+}
 }

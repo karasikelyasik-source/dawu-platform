@@ -21,58 +21,65 @@ export class MailService {
     },
   });
 
-  private restaurantHtml(title: string, content: string) {
+  private layout(title: string, content: string) {
+    const logo = process.env.RESTAURANT_LOGO_URL || '';
+    const website = process.env.RESTAURANT_WEBSITE_URL || '#';
+
     return `
-      <div style="margin:0;padding:0;background:#070504;font-family:Arial,sans-serif;color:#ffffff;">
-        <div style="max-width:620px;margin:0 auto;padding:32px 18px;">
-          <div style="text-align:center;margin-bottom:28px;">
-            <div style="font-size:34px;font-weight:900;letter-spacing:8px;">DAWU</div>
-            <div style="margin-top:8px;color:#d6b15f;font-size:12px;letter-spacing:4px;text-transform:uppercase;">
-              Sushi Fusion
-            </div>
-          </div>
-
-          <div style="background:#111;border:1px solid #2a2a2a;border-radius:24px;padding:28px;">
-            <h1 style="margin:0 0 20px;font-size:26px;line-height:1.2;color:#ffffff;">
-              ${title}
-            </h1>
-
-            ${content}
-          </div>
-
-          <div style="margin-top:24px;text-align:center;color:#888;font-size:12px;line-height:1.6;">
-            DaWu Sushi Fusion<br/>
-            This email was sent automatically.
-          </div>
-        </div>
+<div style="margin:0;padding:0;background:#070504;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
+  <div style="max-width:640px;margin:0 auto;padding:34px 18px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      ${
+        logo
+          ? `<img src="${logo}" alt="DaWu Sushi Fusion" width="180" style="display:block;margin:0 auto 18px;" />`
+          : `<div style="font-size:34px;font-weight:900;letter-spacing:8px;">DAWU</div>`
+      }
+      <div style="color:#d6b15f;font-size:12px;letter-spacing:4px;text-transform:uppercase;">
+        Sushi Fusion
       </div>
-    `;
+    </div>
+
+    <div style="background:#111111;border:1px solid #2a2a2a;border-radius:26px;padding:30px;">
+      <h1 style="margin:0 0 22px;font-size:28px;line-height:1.2;color:#ffffff;">
+        ${title}
+      </h1>
+
+      ${content}
+    </div>
+
+    <div style="margin-top:24px;text-align:center;color:#888;font-size:12px;line-height:1.7;">
+      DaWu Sushi Fusion<br/>
+      Beverwijk, Netherlands<br/>
+      <a href="${website}" style="color:#d6b15f;text-decoration:none;">Visit website</a><br/><br/>
+      This email was sent automatically.
+    </div>
+  </div>
+</div>`;
   }
 
   private row(label: string, value?: string | number) {
     return `
-      <div style="padding:14px 0;border-bottom:1px solid #272727;">
-        <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px;">
-          ${label}
-        </div>
-        <div style="font-size:18px;font-weight:700;color:#ffffff;">
-          ${value || '-'}
-        </div>
-      </div>
-    `;
+<div style="padding:14px 0;border-bottom:1px solid #272727;">
+  <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:4px;">
+    ${label}
+  </div>
+  <div style="font-size:18px;font-weight:700;color:#ffffff;">
+    ${value || '-'}
+  </div>
+</div>`;
   }
 
   async sendNewReservationEmail(data: ReservationEmailData) {
-    const html = this.restaurantHtml(
-      `New reservation`,
+    const html = this.layout(
+      'New reservation',
       `
-        ${this.row('Name', data.name)}
-        ${this.row('Phone', data.phone)}
-        ${this.row('Email', data.email || '-')}
-        ${this.row('Guests', data.guests)}
-        ${this.row('Date', data.date)}
-        ${this.row('Time', data.time)}
-        ${this.row('Message', data.message || '-')}
+${this.row('Name', data.name)}
+${this.row('Phone', data.phone)}
+${this.row('Email', data.email || '-')}
+${this.row('Guests', data.guests)}
+${this.row('Date', data.date)}
+${this.row('Time', data.time)}
+${this.row('Message', data.message || '-')}
       `,
     );
 
@@ -99,21 +106,21 @@ Message: ${data.message || '-'}
   async sendCustomerReservationEmail(data: ReservationEmailData) {
     if (!data.email) return;
 
-    const html = this.restaurantHtml(
-      `Reservation confirmed`,
+    const html = this.layout(
+      'Reservation confirmed',
       `
-        <p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
-          Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
-          Thank you for your reservation at DaWu Sushi Fusion. Your reservation is confirmed.
-        </p>
+<p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
+  Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
+  Thank you for your reservation at DaWu Sushi Fusion. Your reservation is confirmed.
+</p>
 
-        ${this.row('Guests', data.guests)}
-        ${this.row('Date', data.date)}
-        ${this.row('Time', data.time)}
+${this.row('Guests', data.guests)}
+${this.row('Date', data.date)}
+${this.row('Time', data.time)}
 
-        <p style="margin:24px 0 0;color:#d0d0d0;font-size:16px;line-height:1.7;">
-          We look forward to welcoming you.
-        </p>
+<p style="margin:24px 0 0;color:#d0d0d0;font-size:16px;line-height:1.7;">
+  We look forward to welcoming you.
+</p>
       `,
     );
 
@@ -156,21 +163,21 @@ DaWu Sushi Fusion
       minute: '2-digit',
     });
 
-    const html = this.restaurantHtml(
-      `Reservation cancelled`,
+    const html = this.layout(
+      'Reservation cancelled',
       `
-        <p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
-          Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
-          Your reservation at DaWu Sushi Fusion has been cancelled.
-        </p>
+<p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
+  Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
+  Your reservation at DaWu Sushi Fusion has been cancelled.
+</p>
 
-        ${this.row('Guests', data.guests)}
-        ${this.row('Date', date)}
-        ${this.row('Time', time)}
+${this.row('Guests', data.guests)}
+${this.row('Date', date)}
+${this.row('Time', time)}
 
-        <p style="margin:24px 0 0;color:#d0d0d0;font-size:16px;line-height:1.7;">
-          If this was a mistake, please contact us.
-        </p>
+<p style="margin:24px 0 0;color:#d0d0d0;font-size:16px;line-height:1.7;">
+  If this was a mistake, please contact us.
+</p>
       `,
     );
 

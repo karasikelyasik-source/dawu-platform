@@ -108,12 +108,13 @@ Message: ${data.message || '-'}
   async sendCustomerReservationEmail(data: ReservationEmailData) {
     if (!data.email) return;
 
-const checkInUrl = `${process.env.RESTAURANT_WEBSITE_URL || 'http://31.57.201.45:3002'}/reservation/check-in/${data.qrToken}`;
+const qrPayload = `DAWU:${data.qrToken}`;
 
 const qrCodeDataUrl = data.qrToken
-  ? await QRCode.toDataURL(checkInUrl, {
+  ? await QRCode.toDataURL(qrPayload, {
       width: 220,
       margin: 2,
+      errorCorrectionLevel: 'H',
     })
   : '';
 

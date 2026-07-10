@@ -73,13 +73,16 @@ export default function ReservationCard({
         <Info label="Time" value={reservationTime} />
         <Info label="Status" value={reservation.status} />
         <Info
-          label="Table"
-          value={
-            reservation.table?.number
-              ? `Table ${reservation.table.number}`
-              : '—'
-          }
-        />
+  label="Table"
+  value={
+    reservation.table
+      ? `Table ${
+          reservation.table.label ||
+          reservation.table.number
+        }`
+      : '—'
+  }
+/>
       </div>
 
       {hasTable && (
@@ -88,9 +91,11 @@ export default function ReservationCard({
             Table Assigned
           </p>
 
-          <p className="mt-2 text-2xl font-semibold text-white">
-            Table {reservation.table?.number}
-          </p>
+        <p className="mt-2 text-2xl font-semibold text-white">
+  Table{' '}
+  {reservation.table?.label ||
+    reservation.table?.number}
+</p>
         </div>
       )}
 

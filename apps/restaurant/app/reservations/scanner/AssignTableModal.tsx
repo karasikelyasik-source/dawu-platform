@@ -87,7 +87,7 @@ export default function AssignTableModal({
                   </p>
 
                   <p className="mt-1 text-2xl font-semibold">
-                    {table.number}
+                    {table.label || String(table.number)}
                   </p>
 
                   <p

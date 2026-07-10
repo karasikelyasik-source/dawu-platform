@@ -1,6 +1,7 @@
 export type ReservationTable = {
   id: string;
   number: number;
+  label?: string | null;
   seats?: number;
   status?: string;
 };
@@ -22,6 +23,7 @@ export type Reservation = {
 export type RestaurantTable = {
   id: string;
   number: number;
+  label?: string | null;
   seats: number;
   status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
 };

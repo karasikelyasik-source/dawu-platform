@@ -10,7 +10,7 @@ import { TakeAwayModule } from './take-away/take-away.module';
 import { SystemLogsModule } from './system-logs/system-logs.module';
 import { PublicReservationsModule } from './public-reservations/public-reservations.module';
 import { MailModule } from './mail/mail.module';
-import { PackagesModule } from './packages/packages.module';
+//import { PackagesModule } from './packages/packages.module';
 
 @Module({
 imports: [
@@ -25,7 +25,7 @@ imports: [
   SystemLogsModule,
   PublicReservationsModule,
   MailModule,
-  PackagesModule,
+ // PackagesModule,
 ],
 })
 export class AppModule {}

@@ -10,12 +10,12 @@ type ReservationEmailData = {
   date: string;
   time: string;
   message?: string;
-  qrToken?: string;  
+  qrToken?: string;
 };
 
 @Injectable()
 export class MailService {
-  private transporter = nodemailer.createTransport({
+  private readonly transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: process.env.GMAIL_USER,
@@ -36,6 +36,7 @@ export class MailService {
           ? `<img src="${logo}" alt="DaWu Sushi Fusion" width="180" style="display:block;margin:0 auto 18px;" />`
           : `<div style="font-size:34px;font-weight:900;letter-spacing:8px;">DAWU</div>`
       }
+
       <div style="color:#d6b15f;font-size:12px;letter-spacing:4px;text-transform:uppercase;">
         Sushi Fusion
       </div>
@@ -52,7 +53,10 @@ export class MailService {
     <div style="margin-top:24px;text-align:center;color:#888;font-size:12px;line-height:1.7;">
       DaWu Sushi Fusion<br/>
       Beverwijk, Netherlands<br/>
-      <a href="${website}" style="color:#d6b15f;text-decoration:none;">Visit website</a><br/><br/>
+      <a href="${website}" style="color:#d6b15f;text-decoration:none;">
+        Visit website
+      </a>
+      <br/><br/>
       This email was sent automatically.
     </div>
   </div>
@@ -65,6 +69,7 @@ export class MailService {
   <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:4px;">
     ${label}
   </div>
+
   <div style="font-size:18px;font-weight:700;color:#ffffff;">
     ${value || '-'}
   </div>
@@ -106,24 +111,30 @@ Message: ${data.message || '-'}
   }
 
   async sendCustomerReservationEmail(data: ReservationEmailData) {
-    if (!data.email) return;
+    if (!data.email) {
+      return;
+    }
 
-const qrPayload = `DAWU:${data.qrToken}`;
+    let qrCodeBuffer: Buffer | null = null;
 
-const qrCodeDataUrl = data.qrToken
-  ? await QRCode.toDataURL(qrPayload, {
-      width: 220,
-      margin: 2,
-      errorCorrectionLevel: 'H',
-    })
-  : '';
+    if (data.qrToken) {
+      const qrPayload = `DAWU:${data.qrToken}`;
+
+      qrCodeBuffer = await QRCode.toBuffer(qrPayload, {
+        type: 'png',
+        width: 320,
+        margin: 2,
+        errorCorrectionLevel: 'H',
+      });
+    }
 
     const html = this.layout(
       'Reservation confirmed',
       `
 <p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
   Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
-  Thank you for your reservation at DaWu Sushi Fusion. Your reservation is confirmed.
+  Thank you for your reservation at DaWu Sushi Fusion.
+  Your reservation is confirmed.
 </p>
 
 ${this.row('Guests', data.guests)}
@@ -131,15 +142,22 @@ ${this.row('Date', data.date)}
 ${this.row('Time', data.time)}
 
 ${
-  qrCodeDataUrl
+  qrCodeBuffer
     ? `
-      <div style="margin-top:24px;text-align:center;background:#ffffff;border-radius:20px;padding:20px;">
-        <img src="${qrCodeDataUrl}" alt="Reservation QR Code" width="220" style="display:block;margin:0 auto;" />
-        <div style="margin-top:12px;color:#111;font-size:13px;font-weight:700;">
-          Show this QR code at the restaurant
-        </div>
-      </div>
-    `
+<div style="margin-top:24px;text-align:center;background:#ffffff;border-radius:20px;padding:20px;">
+  <img
+    src="cid:dawu-reservation-qr"
+    alt="Reservation QR Code"
+    width="220"
+    height="220"
+    style="display:block;width:220px;height:220px;margin:0 auto;"
+  />
+
+  <div style="margin-top:12px;color:#111111;font-size:13px;font-weight:700;">
+    Show this QR code at the restaurant
+  </div>
+</div>
+`
     : ''
 }
 
@@ -152,7 +170,9 @@ ${
     await this.transporter.sendMail({
       from: `"DaWu Sushi Fusion" <${process.env.GMAIL_USER}>`,
       to: data.email,
-      replyTo: process.env.RESTAURANT_EMAIL || process.env.GMAIL_USER,
+      replyTo:
+        process.env.RESTAURANT_EMAIL ||
+        process.env.GMAIL_USER,
       subject: 'Your reservation at DaWu is confirmed',
       text: `
 Dear ${data.name},
@@ -165,12 +185,24 @@ Guests: ${data.guests}
 Date: ${data.date}
 Time: ${data.time}
 
+Please show the QR code from this email when you arrive.
+
 We look forward to welcoming you.
 
 Kind regards,
 DaWu Sushi Fusion
       `,
       html,
+      attachments: qrCodeBuffer
+        ? [
+            {
+              filename: 'dawu-reservation-qr.png',
+              content: qrCodeBuffer,
+              cid: 'dawu-reservation-qr',
+              contentType: 'image/png',
+            },
+          ]
+        : [],
     });
   }
 
@@ -180,9 +212,12 @@ DaWu Sushi Fusion
     startTime: Date;
     guests: number;
   }) {
-    if (!data.email) return;
+    if (!data.email) {
+      return;
+    }
 
     const date = data.startTime.toLocaleDateString('nl-NL');
+
     const time = data.startTime.toLocaleTimeString('nl-NL', {
       hour: '2-digit',
       minute: '2-digit',
@@ -209,7 +244,9 @@ ${this.row('Time', time)}
     await this.transporter.sendMail({
       from: `"DaWu Sushi Fusion" <${process.env.GMAIL_USER}>`,
       to: data.email,
-      replyTo: process.env.RESTAURANT_EMAIL || process.env.GMAIL_USER,
+      replyTo:
+        process.env.RESTAURANT_EMAIL ||
+        process.env.GMAIL_USER,
       subject: 'Your reservation at DaWu has been cancelled',
       text: `
 Dear ${data.name},

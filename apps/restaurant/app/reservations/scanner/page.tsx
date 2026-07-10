@@ -3,24 +3,33 @@
 import { useCallback, useState } from 'react';
 import Scanner from './Scanner';
 import ReservationCard from './ReservationCard';
-import { Reservation } from './types';
+import AssignTableModal from './AssignTableModal';
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://31.57.201.45:3000';
+import {
+  CheckInResponse,
+  Reservation,
+  RestaurantTable,
+} from './types';
+
+const API_URL = '/api';
 
 function extractToken(value: string) {
   const trimmed = value.trim();
 
-  if (trimmed.startsWith('DAWU:')) {
-    return trimmed.replace('DAWU:', '').trim();
-  }
-
   if (trimmed.startsWith('DAWU://reservation/v1/')) {
-    return trimmed.replace('DAWU://reservation/v1/', '').trim();
+    return trimmed
+      .replace('DAWU://reservation/v1/', '')
+      .trim();
   }
 
   if (trimmed.startsWith('dawu://reservation/')) {
-    return trimmed.replace('dawu://reservation/', '').trim();
+    return trimmed
+      .replace('dawu://reservation/', '')
+      .trim();
+  }
+
+  if (trimmed.startsWith('DAWU:')) {
+    return trimmed.replace('DAWU:', '').trim();
   }
 
   return null;
@@ -29,10 +38,19 @@ function extractToken(value: string) {
 export default function ReservationScannerPage() {
   const [scannerKey, setScannerKey] = useState(1);
   const [token, setToken] = useState('');
-  const [reservation, setReservation] = useState<Reservation | null>(null);
+
+  const [reservation, setReservation] =
+    useState<Reservation | null>(null);
+
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [checkingIn, setCheckingIn] = useState(false);
+
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [selectedTableId, setSelectedTableId] = useState('');
+  const [loadingTables, setLoadingTables] = useState(false);
+  const [assigningTable, setAssigningTable] = useState(false);
 
   const handleScan = useCallback(async (value: string) => {
     setStatus('Searching reservation...');
@@ -50,21 +68,32 @@ export default function ReservationScannerPage() {
     setToken(qrToken);
 
     try {
-      const res = await fetch(`${API_URL}/reservations/scan/${qrToken}`);
+      const response = await fetch(
+        `${API_URL}/reservations/scan/${encodeURIComponent(qrToken)}`,
+        {
+          cache: 'no-store',
+        }
+      );
 
-      if (!res.ok) {
+      if (!response.ok) {
         setStatus('');
         setError('Reservation not found');
         return;
       }
 
-      const data = await res.json();
+      const data: Reservation | null = await response.json();
+
+      if (!data?.id) {
+        setStatus('');
+        setError('Reservation not found');
+        return;
+      }
 
       setReservation(data);
       setStatus('');
 
       if (data.checkedInAt) {
-        setError('Already checked in');
+        setError('This reservation is already checked in');
       }
     } catch {
       setStatus('');
@@ -79,17 +108,39 @@ export default function ReservationScannerPage() {
     setError('');
 
     try {
-      const res = await fetch(`${API_URL}/reservations/scan/${token}/check-in`, {
-        method: 'POST',
-      });
+      const response = await fetch(
+        `${API_URL}/reservations/scan/${encodeURIComponent(token)}/check-in`,
+        {
+          method: 'POST',
+        }
+      );
 
-      if (!res.ok) {
+      if (!response.ok) {
         setError('Check-in failed');
         return;
       }
 
-      const data = await res.json();
-      setReservation(data);
+      const data: CheckInResponse = await response.json();
+
+      if (!data.success) {
+        if (data.reservation) {
+          setReservation(data.reservation);
+        }
+
+        setError(data.message || 'Check-in failed');
+        return;
+      }
+
+      if (!data.reservation) {
+        setError('Server returned an invalid response');
+        return;
+      }
+
+      setReservation(data.reservation);
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate([80, 50, 120]);
+      }
     } catch {
       setError('Cannot connect to server');
     } finally {
@@ -97,11 +148,93 @@ export default function ReservationScannerPage() {
     }
   }
 
+  async function openAssignTable() {
+    setAssignModalOpen(true);
+    setSelectedTableId('');
+    setLoadingTables(true);
+    setError('');
+
+    try {
+      const response = await fetch(`${API_URL}/tables`, {
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load tables');
+      }
+
+      const data: RestaurantTable[] = await response.json();
+
+      const availableTables = data
+        .filter((table) => table.status === 'AVAILABLE')
+        .sort((a, b) => a.number - b.number);
+
+      setTables(availableTables);
+    } catch {
+      setError('Cannot load available tables');
+      setAssignModalOpen(false);
+    } finally {
+      setLoadingTables(false);
+    }
+  }
+
+  async function assignTable() {
+    if (!reservation || !selectedTableId) return;
+
+    setAssigningTable(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `${API_URL}/reservations/${reservation.id}/assign-table`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tableId: selectedTableId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        setError('Could not assign this table');
+        return;
+      }
+
+      const updatedReservation: Reservation =
+        await response.json();
+
+      setReservation(updatedReservation);
+      setAssignModalOpen(false);
+      setSelectedTableId('');
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate(100);
+      }
+    } catch {
+      setError('Cannot connect to server');
+    } finally {
+      setAssigningTable(false);
+    }
+  }
+
+  function closeAssignModal() {
+    if (assigningTable) return;
+
+    setAssignModalOpen(false);
+    setSelectedTableId('');
+  }
+
   function scanAgain() {
     setToken('');
     setReservation(null);
     setStatus('');
     setError('');
+    setTables([]);
+    setSelectedTableId('');
+    setAssignModalOpen(false);
     setScannerKey((value) => value + 1);
   }
 
@@ -123,7 +256,10 @@ export default function ReservationScannerPage() {
         </header>
 
         {!reservation && !status && (
-          <Scanner key={scannerKey} onScan={handleScan} />
+          <Scanner
+            key={scannerKey}
+            onScan={handleScan}
+          />
         )}
 
         {status && (
@@ -143,12 +279,14 @@ export default function ReservationScannerPage() {
             reservation={reservation}
             checkingIn={checkingIn}
             onCheckIn={checkIn}
+            onAssignTable={openAssignTable}
             onScanAgain={scanAgain}
           />
         )}
 
         {!reservation && error && (
           <button
+            type="button"
             onClick={scanAgain}
             className="mt-5 w-full rounded-2xl border border-neutral-700 px-5 py-4 font-semibold text-white transition hover:bg-neutral-900"
           >
@@ -156,6 +294,18 @@ export default function ReservationScannerPage() {
           </button>
         )}
       </div>
+
+      {assignModalOpen && (
+        <AssignTableModal
+          tables={tables}
+          selectedTableId={selectedTableId}
+          loading={loadingTables}
+          assigning={assigningTable}
+          onSelect={setSelectedTableId}
+          onConfirm={assignTable}
+          onClose={closeAssignModal}
+        />
+      )}
     </main>
   );
 }

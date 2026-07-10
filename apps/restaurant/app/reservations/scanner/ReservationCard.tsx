@@ -6,6 +6,7 @@ type Props = {
   reservation: Reservation;
   checkingIn: boolean;
   onCheckIn: () => void;
+  onAssignTable: () => void;
   onScanAgain: () => void;
 };
 
@@ -13,15 +14,15 @@ export default function ReservationCard({
   reservation,
   checkingIn,
   onCheckIn,
+  onAssignTable,
   onScanAgain,
 }: Props) {
-  const reservationTime = new Date(reservation.startTime).toLocaleTimeString(
-    'nl-NL',
-    {
-      hour: '2-digit',
-      minute: '2-digit',
-    }
-  );
+  const reservationTime = new Date(
+    reservation.startTime
+  ).toLocaleTimeString('nl-NL', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   const checkedInTime = reservation.checkedInAt
     ? new Date(reservation.checkedInAt).toLocaleTimeString('nl-NL', {
@@ -30,22 +31,37 @@ export default function ReservationCard({
       })
     : null;
 
+  const isCheckedIn = Boolean(reservation.checkedInAt);
+  const hasTable = Boolean(reservation.table?.id);
+
   return (
     <div className="mt-6 rounded-[32px] border border-yellow-700/40 bg-neutral-950 p-6 shadow-2xl">
       <div className="text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-yellow-500 text-2xl font-bold text-black">
-          {reservation.checkedInAt ? '✓' : '•'}
+        <div
+          className={[
+            'mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold',
+            isCheckedIn
+              ? 'bg-green-500 text-black'
+              : 'bg-yellow-500 text-black',
+          ].join(' ')}
+        >
+          {isCheckedIn ? '✓' : '•'}
         </div>
 
-        <p className="mt-4 text-sm uppercase tracking-[0.3em] text-yellow-500">
-          {reservation.checkedInAt ? 'Checked In' : 'Reservation Found'}
+        <p
+          className={[
+            'mt-4 text-sm uppercase tracking-[0.3em]',
+            isCheckedIn ? 'text-green-400' : 'text-yellow-500',
+          ].join(' ')}
+        >
+          {isCheckedIn ? 'Checked In' : 'Reservation Found'}
         </p>
 
         <h2 className="mt-3 text-3xl font-semibold text-white">
           {reservation.name}
         </h2>
 
-        {reservation.checkedInAt && checkedInTime && (
+        {isCheckedIn && checkedInTime && (
           <p className="mt-2 text-sm text-green-300">
             Checked in at {checkedInTime}
           </p>
@@ -66,9 +82,22 @@ export default function ReservationCard({
         />
       </div>
 
+      {hasTable && (
+        <div className="mt-5 rounded-2xl border border-green-800/70 bg-green-950/30 p-4 text-center">
+          <p className="text-xs uppercase tracking-[0.25em] text-green-400">
+            Table Assigned
+          </p>
+
+          <p className="mt-2 text-2xl font-semibold text-white">
+            Table {reservation.table?.number}
+          </p>
+        </div>
+      )}
+
       <div className="mt-6 space-y-3">
-        {!reservation.checkedInAt && (
+        {!isCheckedIn && (
           <button
+            type="button"
             onClick={onCheckIn}
             disabled={checkingIn}
             className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400 disabled:opacity-50"
@@ -77,7 +106,28 @@ export default function ReservationCard({
           </button>
         )}
 
+        {isCheckedIn && !hasTable && (
+          <button
+            type="button"
+            onClick={onAssignTable}
+            className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400"
+          >
+            Assign Table
+          </button>
+        )}
+
+        {isCheckedIn && hasTable && (
+          <button
+            type="button"
+            disabled
+            className="w-full rounded-2xl bg-neutral-800 px-5 py-4 text-base font-semibold text-neutral-400"
+          >
+            Open Table — next step
+          </button>
+        )}
+
         <button
+          type="button"
           onClick={onScanAgain}
           className="w-full rounded-2xl border border-neutral-700 px-5 py-4 text-base font-semibold text-white transition hover:bg-neutral-900"
         >
@@ -94,7 +144,10 @@ function Info({ label, value }: { label: string; value: string }) {
       <p className="text-xs uppercase tracking-[0.2em] text-neutral-500">
         {label}
       </p>
-      <p className="mt-2 text-lg font-semibold text-white">{value}</p>
+
+      <p className="mt-2 break-words text-lg font-semibold text-white">
+        {value}
+      </p>
     </div>
   );
 }

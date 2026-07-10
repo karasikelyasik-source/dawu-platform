@@ -1,3 +1,10 @@
+export type ReservationTable = {
+  id: string;
+  number: number;
+  seats?: number;
+  status?: string;
+};
+
 export type Reservation = {
   id: string;
   name: string;
@@ -9,8 +16,18 @@ export type Reservation = {
   status: string;
   tableId?: string | null;
   checkedInAt?: string | null;
-  table?: {
-    id: string;
-    number: number;
-  } | null;
+  table?: ReservationTable | null;
+};
+
+export type RestaurantTable = {
+  id: string;
+  number: number;
+  seats: number;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'CLEANING';
+};
+
+export type CheckInResponse = {
+  success: boolean;
+  message?: string;
+  reservation?: Reservation;
 };

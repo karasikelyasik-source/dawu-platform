@@ -1,13 +1,20 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import {
+  useCallback,
+  useState,
+} from 'react';
+
 import Scanner from './Scanner';
 import ReservationCard from './ReservationCard';
 import AssignTableModal from './AssignTableModal';
+import PackageSelectModal from './PackageSelectModal';
 
 import {
   CheckInResponse,
+  OpenTableResponse,
   Reservation,
+  RestaurantPackage,
   RestaurantTable,
 } from './types';
 
@@ -16,90 +23,205 @@ const API_URL = '/api';
 function extractToken(value: string) {
   const trimmed = value.trim();
 
-  if (trimmed.startsWith('DAWU://reservation/v1/')) {
+  if (
+    trimmed.startsWith(
+      'DAWU://reservation/v1/',
+    )
+  ) {
     return trimmed
-      .replace('DAWU://reservation/v1/', '')
+      .replace(
+        'DAWU://reservation/v1/',
+        '',
+      )
       .trim();
   }
 
-  if (trimmed.startsWith('dawu://reservation/')) {
+  if (
+    trimmed.startsWith(
+      'dawu://reservation/',
+    )
+  ) {
     return trimmed
       .replace('dawu://reservation/', '')
       .trim();
   }
 
   if (trimmed.startsWith('DAWU:')) {
-    return trimmed.replace('DAWU:', '').trim();
+    return trimmed
+      .replace('DAWU:', '')
+      .trim();
   }
 
   return null;
 }
 
+async function readErrorMessage(
+  response: Response,
+  fallback: string,
+) {
+  const data = await response
+    .json()
+    .catch(() => null);
+
+  if (
+    typeof data?.message === 'string'
+  ) {
+    return data.message;
+  }
+
+  if (Array.isArray(data?.message)) {
+    return data.message.join(', ');
+  }
+
+  return fallback;
+}
+
 export default function ReservationScannerPage() {
-  const [scannerKey, setScannerKey] = useState(1);
-  const [token, setToken] = useState('');
+  const [scannerKey, setScannerKey] =
+    useState(1);
 
-  const [reservation, setReservation] =
-    useState<Reservation | null>(null);
+  const [token, setToken] =
+    useState('');
 
-  const [status, setStatus] = useState('');
-  const [error, setError] = useState('');
-  const [checkingIn, setCheckingIn] = useState(false);
+  const [
+    reservation,
+    setReservation,
+  ] = useState<Reservation | null>(null);
 
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-  const [tables, setTables] = useState<RestaurantTable[]>([]);
-  const [selectedTableId, setSelectedTableId] = useState('');
-  const [loadingTables, setLoadingTables] = useState(false);
-  const [assigningTable, setAssigningTable] = useState(false);
+  const [status, setStatus] =
+    useState('');
 
-  const handleScan = useCallback(async (value: string) => {
-    setStatus('Searching reservation...');
-    setError('');
-    setReservation(null);
+  const [error, setError] =
+    useState('');
 
-    const qrToken = extractToken(value);
+  const [
+    checkingIn,
+    setCheckingIn,
+  ] = useState(false);
 
-    if (!qrToken) {
-      setStatus('');
-      setError('Invalid DaWu QR code');
-      return;
-    }
+  const [
+    assignModalOpen,
+    setAssignModalOpen,
+  ] = useState(false);
 
-    setToken(qrToken);
+  const [tables, setTables] = useState<
+    RestaurantTable[]
+  >([]);
 
-    try {
-      const response = await fetch(
-        `${API_URL}/reservations/scan/${encodeURIComponent(qrToken)}`,
-        {
-          cache: 'no-store',
-        }
+  const [
+    selectedTableId,
+    setSelectedTableId,
+  ] = useState('');
+
+  const [
+    loadingTables,
+    setLoadingTables,
+  ] = useState(false);
+
+  const [
+    assigningTable,
+    setAssigningTable,
+  ] = useState(false);
+
+  const [
+    packageModalOpen,
+    setPackageModalOpen,
+  ] = useState(false);
+
+  const [
+    packages,
+    setPackages,
+  ] = useState<RestaurantPackage[]>([]);
+
+  const [
+    selectedPackageId,
+    setSelectedPackageId,
+  ] = useState('');
+
+  const [
+    loadingPackages,
+    setLoadingPackages,
+  ] = useState(false);
+
+  const [
+    openingTable,
+    setOpeningTable,
+  ] = useState(false);
+
+  const [
+    openedPackageName,
+    setOpenedPackageName,
+  ] = useState('');
+
+  const handleScan = useCallback(
+    async (value: string) => {
+      setStatus(
+        'Searching reservation...',
       );
 
-      if (!response.ok) {
+      setError('');
+      setReservation(null);
+
+      const qrToken = extractToken(value);
+
+      if (!qrToken) {
         setStatus('');
-        setError('Reservation not found');
+        setError(
+          'Invalid DaWu QR code',
+        );
         return;
       }
 
-      const data: Reservation | null = await response.json();
+      setToken(qrToken);
 
-      if (!data?.id) {
+      try {
+        const response = await fetch(
+          `${API_URL}/reservations/scan/${encodeURIComponent(
+            qrToken,
+          )}`,
+          {
+            cache: 'no-store',
+          },
+        );
+
+        if (!response.ok) {
+          setStatus('');
+          setError(
+            'Reservation not found',
+          );
+          return;
+        }
+
+        const data:
+          | Reservation
+          | null =
+          await response.json();
+
+        if (!data?.id) {
+          setStatus('');
+          setError(
+            'Reservation not found',
+          );
+          return;
+        }
+
+        setReservation(data);
         setStatus('');
-        setError('Reservation not found');
-        return;
-      }
 
-      setReservation(data);
-      setStatus('');
-
-      if (data.checkedInAt) {
-        setError('This reservation is already checked in');
+        if (data.checkedInAt) {
+          setError(
+            'This reservation is already checked in',
+          );
+        }
+      } catch {
+        setStatus('');
+        setError(
+          'Cannot connect to server',
+        );
       }
-    } catch {
-      setStatus('');
-      setError('Cannot connect to server');
-    }
-  }, []);
+    },
+    [],
+  );
 
   async function checkIn() {
     if (!token) return;
@@ -109,40 +231,65 @@ export default function ReservationScannerPage() {
 
     try {
       const response = await fetch(
-        `${API_URL}/reservations/scan/${encodeURIComponent(token)}/check-in`,
+        `${API_URL}/reservations/scan/${encodeURIComponent(
+          token,
+        )}/check-in`,
         {
           method: 'POST',
-        }
+        },
       );
 
       if (!response.ok) {
-        setError('Check-in failed');
+        const message =
+          await readErrorMessage(
+            response,
+            'Check-in failed',
+          );
+
+        setError(message);
         return;
       }
 
-      const data: CheckInResponse = await response.json();
+      const data: CheckInResponse =
+        await response.json();
 
       if (!data.success) {
         if (data.reservation) {
-          setReservation(data.reservation);
+          setReservation(
+            data.reservation,
+          );
         }
 
-        setError(data.message || 'Check-in failed');
+        setError(
+          data.message ||
+            'Check-in failed',
+        );
+
         return;
       }
 
       if (!data.reservation) {
-        setError('Server returned an invalid response');
+        setError(
+          'Server returned an invalid response',
+        );
         return;
       }
 
-      setReservation(data.reservation);
+      setReservation(
+        data.reservation,
+      );
 
       if ('vibrate' in navigator) {
-        navigator.vibrate([80, 50, 120]);
+        navigator.vibrate?.([
+          80,
+          50,
+          120,
+        ]);
       }
     } catch {
-      setError('Cannot connect to server');
+      setError(
+        'Cannot connect to server',
+      );
     } finally {
       setCheckingIn(false);
     }
@@ -155,23 +302,39 @@ export default function ReservationScannerPage() {
     setError('');
 
     try {
-      const response = await fetch(`${API_URL}/tables`, {
-        cache: 'no-store',
-      });
+      const response = await fetch(
+        `${API_URL}/tables`,
+        {
+          cache: 'no-store',
+        },
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to load tables');
+        throw new Error(
+          'Failed to load tables',
+        );
       }
 
-      const data: RestaurantTable[] = await response.json();
+      const data: RestaurantTable[] =
+        await response.json();
 
       const availableTables = data
-        .filter((table) => table.status === 'AVAILABLE')
-        .sort((a, b) => a.number - b.number);
+        .filter(
+          (table) =>
+            table.status ===
+            'AVAILABLE',
+        )
+        .sort(
+          (a, b) =>
+            a.number - b.number,
+        );
 
       setTables(availableTables);
     } catch {
-      setError('Cannot load available tables');
+      setError(
+        'Cannot load available tables',
+      );
+
       setAssignModalOpen(false);
     } finally {
       setLoadingTables(false);
@@ -179,7 +342,12 @@ export default function ReservationScannerPage() {
   }
 
   async function assignTable() {
-    if (!reservation || !selectedTableId) return;
+    if (
+      !reservation ||
+      !selectedTableId
+    ) {
+      return;
+    }
 
     setAssigningTable(true);
     setError('');
@@ -190,33 +358,179 @@ export default function ReservationScannerPage() {
         {
           method: 'PATCH',
           headers: {
-            'Content-Type': 'application/json',
+            'Content-Type':
+              'application/json',
           },
           body: JSON.stringify({
-            tableId: selectedTableId,
+            tableId:
+              selectedTableId,
           }),
-        }
+        },
       );
 
       if (!response.ok) {
-        setError('Could not assign this table');
+        const message =
+          await readErrorMessage(
+            response,
+            'Could not assign this table',
+          );
+
+        setError(message);
         return;
       }
 
-      const updatedReservation: Reservation =
+      const updatedReservation:
+        Reservation =
         await response.json();
 
-      setReservation(updatedReservation);
+      setReservation(
+        updatedReservation,
+      );
+
       setAssignModalOpen(false);
       setSelectedTableId('');
 
       if ('vibrate' in navigator) {
-        navigator.vibrate(100);
+        navigator.vibrate?.(100);
       }
+
+      await openPackageSelection();
     } catch {
-      setError('Cannot connect to server');
+      setError(
+        'Cannot connect to server',
+      );
     } finally {
       setAssigningTable(false);
+    }
+  }
+
+  async function openPackageSelection() {
+    setPackageModalOpen(true);
+    setSelectedPackageId('');
+    setLoadingPackages(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `${API_URL}/menu/packages`,
+        {
+          cache: 'no-store',
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          'Failed to load packages',
+        );
+      }
+
+      const data:
+        RestaurantPackage[] =
+        await response.json();
+
+      const sortedPackages = Array.isArray(
+        data,
+      )
+        ? [...data].sort(
+            (a, b) =>
+              a.name.localeCompare(
+                b.name,
+              ),
+          )
+        : [];
+
+      setPackages(
+        sortedPackages,
+      );
+    } catch {
+      setError(
+        'Cannot load menu packages',
+      );
+
+      setPackageModalOpen(false);
+    } finally {
+      setLoadingPackages(false);
+    }
+  }
+
+  async function openTable() {
+    if (
+      !token ||
+      !selectedPackageId
+    ) {
+      return;
+    }
+
+    setOpeningTable(true);
+    setError('');
+
+    try {
+      const response = await fetch(
+        `${API_URL}/reservations/scan/${encodeURIComponent(
+          token,
+        )}/open-table`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/json',
+          },
+          body: JSON.stringify({
+            packageId:
+              selectedPackageId,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const message =
+          await readErrorMessage(
+            response,
+            'Could not open table',
+          );
+
+        setError(message);
+        return;
+      }
+
+      const data:
+        OpenTableResponse =
+        await response.json();
+
+      if (
+        !data.success ||
+        !data.reservation
+      ) {
+        setError(
+          'Server returned an invalid response',
+        );
+        return;
+      }
+
+      setReservation(
+        data.reservation,
+      );
+
+      setOpenedPackageName(
+        data.package.name,
+      );
+
+      setPackageModalOpen(false);
+      setSelectedPackageId('');
+
+      if ('vibrate' in navigator) {
+        navigator.vibrate?.([
+          100,
+          60,
+          180,
+        ]);
+      }
+    } catch {
+      setError(
+        'Cannot connect to server',
+      );
+    } finally {
+      setOpeningTable(false);
     }
   }
 
@@ -227,15 +541,29 @@ export default function ReservationScannerPage() {
     setSelectedTableId('');
   }
 
+  function closePackageModal() {
+    if (openingTable) return;
+
+    setPackageModalOpen(false);
+    setSelectedPackageId('');
+  }
+
   function scanAgain() {
     setToken('');
     setReservation(null);
     setStatus('');
     setError('');
     setTables([]);
+    setPackages([]);
     setSelectedTableId('');
+    setSelectedPackageId('');
     setAssignModalOpen(false);
-    setScannerKey((value) => value + 1);
+    setPackageModalOpen(false);
+    setOpenedPackageName('');
+
+    setScannerKey(
+      (value) => value + 1,
+    );
   }
 
   return (
@@ -251,16 +579,19 @@ export default function ReservationScannerPage() {
           </h1>
 
           <p className="mt-3 text-sm leading-6 text-neutral-400">
-            Scan the guest reservation QR code using the staff phone.
+            Scan the guest reservation
+            QR code using the staff
+            phone.
           </p>
         </header>
 
-        {!reservation && !status && (
-          <Scanner
-            key={scannerKey}
-            onScan={handleScan}
-          />
-        )}
+        {!reservation &&
+          !status && (
+            <Scanner
+              key={scannerKey}
+              onScan={handleScan}
+            />
+          )}
 
         {status && (
           <div className="mt-6 rounded-[28px] border border-neutral-800 bg-neutral-950 p-6 text-center text-neutral-300">
@@ -276,34 +607,85 @@ export default function ReservationScannerPage() {
 
         {reservation && (
           <ReservationCard
-            reservation={reservation}
-            checkingIn={checkingIn}
+            reservation={
+              reservation
+            }
+            checkingIn={
+              checkingIn
+            }
+            openedPackageName={
+              openedPackageName
+            }
             onCheckIn={checkIn}
-            onAssignTable={openAssignTable}
-            onScanAgain={scanAgain}
+            onAssignTable={
+              openAssignTable
+            }
+            onChoosePackage={
+              openPackageSelection
+            }
+            onScanAgain={
+              scanAgain
+            }
           />
         )}
 
-        {!reservation && error && (
-          <button
-            type="button"
-            onClick={scanAgain}
-            className="mt-5 w-full rounded-2xl border border-neutral-700 px-5 py-4 font-semibold text-white transition hover:bg-neutral-900"
-          >
-            Scan Again
-          </button>
-        )}
+        {!reservation &&
+          error && (
+            <button
+              type="button"
+              onClick={scanAgain}
+              className="mt-5 w-full rounded-2xl border border-neutral-700 px-5 py-4 font-semibold text-white transition hover:bg-neutral-900"
+            >
+              Scan Again
+            </button>
+          )}
       </div>
 
       {assignModalOpen && (
         <AssignTableModal
           tables={tables}
-          selectedTableId={selectedTableId}
-          loading={loadingTables}
-          assigning={assigningTable}
-          onSelect={setSelectedTableId}
-          onConfirm={assignTable}
-          onClose={closeAssignModal}
+          selectedTableId={
+            selectedTableId
+          }
+          loading={
+            loadingTables
+          }
+          assigning={
+            assigningTable
+          }
+          onSelect={
+            setSelectedTableId
+          }
+          onConfirm={
+            assignTable
+          }
+          onClose={
+            closeAssignModal
+          }
+        />
+      )}
+
+      {packageModalOpen && (
+        <PackageSelectModal
+          packages={packages}
+          selectedPackageId={
+            selectedPackageId
+          }
+          loading={
+            loadingPackages
+          }
+          opening={
+            openingTable
+          }
+          onSelect={
+            setSelectedPackageId
+          }
+          onConfirm={
+            openTable
+          }
+          onClose={
+            closePackageModal
+          }
         />
       )}
     </main>

@@ -4,48 +4,119 @@ import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 type Props = {
-  onScan: (value: string) => void;
+  onScan: (value: string) => void | Promise<void>;
 };
 
 export default function Scanner({ onScan }: Props) {
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const mountedRef = useRef(true);
   const scannedRef = useRef(false);
+
   const [error, setError] = useState('');
+  const [isStarting, setIsStarting] = useState(true);
 
   useEffect(() => {
-    const scanner = new Html5Qrcode('qr-reader');
+    mountedRef.current = true;
+    scannedRef.current = false;
+
+    const scannerId = `qr-reader-${Date.now()}`;
+    const container = document.getElementById('qr-reader');
+
+    if (!container) {
+      setError('Scanner container could not be loaded.');
+      setIsStarting(false);
+      return;
+    }
+
+    container.id = scannerId;
+
+    const scanner = new Html5Qrcode(scannerId);
     scannerRef.current = scanner;
 
-    scanner
-      .start(
-        { facingMode: 'environment' },
-        {
-          fps: 10,
-          qrbox: { width: 280, height: 280 },
-        },
-        async (decodedText) => {
-          if (scannedRef.current) return;
+    async function startScanner() {
+      try {
+        await scanner.start(
+          {
+            facingMode: 'environment',
+          },
+          {
+            fps: 8,
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const size = Math.floor(
+                Math.min(viewfinderWidth, viewfinderHeight) * 0.72,
+              );
 
-          scannedRef.current = true;
+              return {
+                width: size,
+                height: size,
+              };
+            },
+            aspectRatio: 1,
+          },
+          (decodedText) => {
+            if (scannedRef.current || !mountedRef.current) {
+              return;
+            }
 
-          if ('vibrate' in navigator) {
-            navigator.vibrate(120);
-          }
+            scannedRef.current = true;
 
-          try {
-            await scanner.stop();
-          } catch {}
+            if ('vibrate' in navigator) {
+              navigator.vibrate?.(100);
+            }
 
-          onScan(decodedText);
-        },
-        () => {}
-      )
-      .catch(() => {
-        setError('Camera access denied or unavailable');
-      });
+            // Сначала передаём результат странице.
+            // Камеру останавливаем немного позже, чтобы Safari
+            // не сломал текущий video callback.
+            void onScan(decodedText);
+
+            window.setTimeout(() => {
+              if (!scannerRef.current) {
+                return;
+              }
+
+              scannerRef.current
+                .stop()
+                .catch(() => {
+                  // Камера могла уже остановиться при размонтировании.
+                });
+            }, 250);
+          },
+          () => {
+            // Ошибки отдельных кадров игнорируем:
+            // это нормальная часть процесса сканирования.
+          },
+        );
+
+        if (mountedRef.current) {
+          setIsStarting(false);
+        }
+      } catch (startError) {
+        console.error('QR scanner start failed:', startError);
+
+        if (mountedRef.current) {
+          setIsStarting(false);
+          setError(
+            'Camera could not be started. Check camera permission and reload the page.',
+          );
+        }
+      }
+    }
+
+    void startScanner();
 
     return () => {
-      scannerRef.current?.stop().catch(() => {});
+      mountedRef.current = false;
+
+      const activeScanner = scannerRef.current;
+      scannerRef.current = null;
+
+      if (activeScanner) {
+        activeScanner
+          .stop()
+          .catch(() => {
+            // Scanner may already be stopped.
+          });
+      }
     };
   }, [onScan]);
 
@@ -53,8 +124,14 @@ export default function Scanner({ onScan }: Props) {
     <div className="rounded-[32px] border border-neutral-800 bg-neutral-950 p-3 shadow-2xl">
       <div
         id="qr-reader"
-        className="overflow-hidden rounded-[24px] bg-black"
+        className="min-h-[320px] overflow-hidden rounded-[24px] bg-black"
       />
+
+      {isStarting && !error && (
+        <div className="mt-4 rounded-2xl border border-neutral-800 bg-black p-4 text-center text-sm text-neutral-400">
+          Starting camera...
+        </div>
+      )}
 
       {error && (
         <div className="mt-4 rounded-2xl border border-red-900/70 bg-red-950/40 p-4 text-center text-sm text-red-200">

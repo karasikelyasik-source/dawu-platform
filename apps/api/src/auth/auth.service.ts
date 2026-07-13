@@ -11,7 +11,7 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: data.email,
+        email: data.email.trim().toLowerCase(),
         password: hashedPassword,
         role: 'ADMIN',
       },
@@ -31,23 +31,37 @@ export class AuthService {
       userAgent?: string | null;
     },
   ) {
+    const email = data.email.trim().toLowerCase();
+
     const user = await this.prisma.user.findUnique({
-      where: { email: data.email },
+      where: {
+        email,
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(
+        'Invalid email or password',
+      );
     }
 
-    const isValid = await bcrypt.compare(data.password, user.password);
+    const isValid = await bcrypt.compare(
+      data.password,
+      user.password,
+    );
 
     if (!isValid) {
-      throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException(
+        'Invalid email or password',
+      );
     }
 
-    const bannedEmail = await this.prisma.bannedEmail.findUnique({
-      where: { email: user.email },
-    });
+    const bannedEmail =
+      await this.prisma.bannedEmail.findUnique({
+        where: {
+          email: user.email,
+        },
+      });
 
     if (bannedEmail) {
       throw new UnauthorizedException({
@@ -59,7 +73,9 @@ export class AuthService {
 
     const bannedIp = sessionData?.ip
       ? await this.prisma.bannedIp.findUnique({
-          where: { ip: sessionData.ip },
+          where: {
+            ip: sessionData.ip,
+          },
         })
       : null;
 
@@ -70,16 +86,6 @@ export class AuthService {
         expiresAt: bannedIp.expiresAt,
       });
     }
-
-await this.prisma.session.updateMany({
-  where: {
-    userId: user.id,
-    online: true,
-  },
-  data: {
-    online: false,
-  },
-});
 
     const session = await this.prisma.session.create({
       data: {
@@ -97,39 +103,61 @@ await this.prisma.session.updateMany({
       sessionId: session.id,
     };
   }
-    async changeEmail(data: {
+
+  async changeEmail(data: {
     userId: string;
     newEmail: string;
     password: string;
   }) {
     const user = await this.prisma.user.findUnique({
-      where: { id: data.userId },
+      where: {
+        id: data.userId,
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        'User not found',
+      );
     }
 
-    const isValid = await bcrypt.compare(data.password, user.password);
+    const isValid = await bcrypt.compare(
+      data.password,
+      user.password,
+    );
 
     if (!isValid) {
-      throw new UnauthorizedException('Wrong password');
+      throw new UnauthorizedException(
+        'Wrong password',
+      );
     }
 
-    const existing = await this.prisma.user.findUnique({
-      where: { email: data.newEmail },
-    });
+    const newEmail = data.newEmail
+      .trim()
+      .toLowerCase();
+
+    const existing =
+      await this.prisma.user.findUnique({
+        where: {
+          email: newEmail,
+        },
+      });
 
     if (existing && existing.id !== user.id) {
-      throw new UnauthorizedException('Email already used');
+      throw new UnauthorizedException(
+        'Email already used',
+      );
     }
 
-    const updated = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        email: data.newEmail.trim().toLowerCase(),
-      },
-    });
+    const updated =
+      await this.prisma.user.update({
+        where: {
+          id: user.id,
+        },
+        data: {
+          email: newEmail,
+        },
+      });
 
     return {
       id: updated.id,
@@ -144,23 +172,37 @@ await this.prisma.session.updateMany({
     newPassword: string;
   }) {
     const user = await this.prisma.user.findUnique({
-      where: { id: data.userId },
+      where: {
+        id: data.userId,
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        'User not found',
+      );
     }
 
-    const isValid = await bcrypt.compare(data.oldPassword, user.password);
+    const isValid = await bcrypt.compare(
+      data.oldPassword,
+      user.password,
+    );
 
     if (!isValid) {
-      throw new UnauthorizedException('Wrong password');
+      throw new UnauthorizedException(
+        'Wrong password',
+      );
     }
 
-    const hashedPassword = await bcrypt.hash(data.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(
+      data.newPassword,
+      10,
+    );
 
     await this.prisma.user.update({
-      where: { id: user.id },
+      where: {
+        id: user.id,
+      },
       data: {
         password: hashedPassword,
       },
@@ -176,21 +218,32 @@ await this.prisma.session.updateMany({
     password: string;
   }) {
     const user = await this.prisma.user.findUnique({
-      where: { id: data.userId },
+      where: {
+        id: data.userId,
+      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        'User not found',
+      );
     }
 
-    const isValid = await bcrypt.compare(data.password, user.password);
+    const isValid = await bcrypt.compare(
+      data.password,
+      user.password,
+    );
 
     if (!isValid) {
-      throw new UnauthorizedException('Wrong password');
+      throw new UnauthorizedException(
+        'Wrong password',
+      );
     }
 
     await this.prisma.user.delete({
-      where: { id: user.id },
+      where: {
+        id: user.id,
+      },
     });
 
     return {

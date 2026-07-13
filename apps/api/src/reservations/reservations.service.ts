@@ -213,169 +213,160 @@ export class ReservationsService {
     };
   }
 
-  async openTableByQrToken(
-    qrToken: string,
-    packageId: string,
-  ) {
-    if (!packageId) {
-      throw new BadRequestException(
-        'Package is required',
+async openTableByQrToken(
+  qrToken: string,
+  packageId?: string,
+) {
+  if (!packageId?.trim()) {
+    throw new BadRequestException(
+      'Menu package is required',
+    );
+  }
+
+  return this.prisma.$transaction(async (tx) => {
+    const reservation = await tx.reservation.findUnique({
+      where: {
+        qrToken,
+      },
+      include: {
+        table: true,
+      },
+    });
+
+    if (!reservation) {
+      throw new NotFoundException(
+        'Reservation not found',
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
-      const reservation =
-        await tx.reservation.findUnique({
-          where: {
-            qrToken,
-          },
-          include: {
-            table: true,
-          },
-        });
-
-      if (!reservation) {
-        throw new NotFoundException(
-          'Reservation not found',
-        );
-      }
-
-      if (!reservation.checkedInAt) {
-        throw new BadRequestException(
-          'Reservation must be checked in first',
-        );
-      }
-
-      if (!reservation.tableId) {
-        throw new BadRequestException(
-          'Assign a table before opening it',
-        );
-      }
-
-      const selectedPackage =
-        await tx.package.findUnique({
-          where: {
-            id: packageId,
-          },
-        });
-
-      if (!selectedPackage) {
-        throw new NotFoundException(
-          'Package not found',
-        );
-      }
-
-      const normalizedPackageName =
-        selectedPackage.name
-          .trim()
-          .toUpperCase();
-
-      let packageType: 'STANDARD' | 'DELUXE';
-
-      if (normalizedPackageName === 'STANDARD') {
-        packageType = 'STANDARD';
-      } else if (
-        normalizedPackageName === 'DELUXE'
-      ) {
-        packageType = 'DELUXE';
-      } else {
-        throw new BadRequestException(
-          `Package "${selectedPackage.name}" is not supported`,
-        );
-      }
-
-      const table = await tx.table.findUnique({
-        where: {
-          id: reservation.tableId,
-        },
-      });
-
-      if (!table) {
-        throw new NotFoundException(
-          'Table not found',
-        );
-      }
-
-      const activeSession =
-        await tx.tableSession.findFirst({
-          where: {
-            tableId: table.id,
-            status: 'ACTIVE',
-          },
-        });
-
-      if (activeSession) {
-        throw new ConflictException(
-          'This table already has an active session',
-        );
-      }
-
-      if (table.status === 'OCCUPIED') {
-        throw new ConflictException(
-          'This table is already occupied',
-        );
-      }
-
-      if (table.status === 'CLEANING') {
-        throw new ConflictException(
-          'This table is being cleaned',
-        );
-      }
-
-      const expiresAt = new Date(
-        Date.now() + 2.5 * 60 * 60 * 1000,
+    if (!reservation.checkedInAt) {
+      throw new BadRequestException(
+        'Reservation must be checked in first',
       );
+    }
 
-      const selectedPackages = [
-        {
-          packageId: selectedPackage.id,
-          name: selectedPackage.name,
-          guests: reservation.guests,
-          price: selectedPackage.price,
-          btwRate: selectedPackage.btwRate,
-        },
-      ];
+    if (!reservation.tableId || !reservation.table) {
+      throw new BadRequestException(
+        'Assign a table before opening it',
+      );
+    }
 
-      const updatedTable = await tx.table.update({
+    const selectedPackage = await tx.package.findUnique({
+      where: {
+        id: packageId,
+      },
+    });
+
+    if (!selectedPackage) {
+      throw new NotFoundException(
+        'Menu package not found',
+      );
+    }
+
+    const normalizedName = selectedPackage.name
+      .trim()
+      .toUpperCase();
+
+    let packageType: 'STANDARD' | 'DELUXE';
+
+    if (normalizedName === 'STANDARD') {
+      packageType = 'STANDARD';
+    } else if (normalizedName === 'DELUXE') {
+      packageType = 'DELUXE';
+    } else {
+      throw new BadRequestException(
+        `Menu "${selectedPackage.name}" is not supported by the current session system`,
+      );
+    }
+
+    const table = await tx.table.findUnique({
+      where: {
+        id: reservation.tableId,
+      },
+    });
+
+    if (!table) {
+      throw new NotFoundException('Table not found');
+    }
+
+    const activeSession = await tx.tableSession.findFirst({
+      where: {
+        tableId: table.id,
+        status: 'ACTIVE',
+      },
+    });
+
+    if (activeSession) {
+      throw new ConflictException(
+        'This table already has an active session',
+      );
+    }
+
+    if (table.status === 'OCCUPIED') {
+      throw new ConflictException(
+        'This table is already occupied',
+      );
+    }
+
+    if (table.status === 'CLEANING') {
+      throw new ConflictException(
+        'This table is currently being cleaned',
+      );
+    }
+
+    const expiresAt = new Date(
+      Date.now() + 2.5 * 60 * 60 * 1000,
+    );
+
+    const selectedPackages = [
+      {
+        packageId: selectedPackage.id,
+        name: selectedPackage.name,
+        guests: reservation.guests,
+        price: selectedPackage.price,
+        btwRate: selectedPackage.btwRate,
+      },
+    ];
+
+    const updatedTable = await tx.table.update({
+      where: {
+        id: table.id,
+      },
+      data: {
+        status: 'OCCUPIED',
+        selectedPackage: `${selectedPackage.name} x${reservation.guests}`,
+        selectedGuests: reservation.guests,
+        selectedPackages,
+      },
+    });
+
+    const session = await tx.tableSession.create({
+      data: {
+        tableId: table.id,
+        guests: reservation.guests,
+        packageType,
+        expiresAt,
+        status: 'ACTIVE',
+      },
+    });
+
+    const updatedReservation =
+      await tx.reservation.findUnique({
         where: {
-          id: table.id,
+          id: reservation.id,
         },
-        data: {
-          status: 'OCCUPIED',
-          selectedPackage: `${selectedPackage.name} x${reservation.guests}`,
-          selectedGuests: reservation.guests,
-          selectedPackages,
+        include: {
+          table: true,
         },
       });
 
-      const session =
-        await tx.tableSession.create({
-          data: {
-            tableId: table.id,
-            guests: reservation.guests,
-            packageType,
-            expiresAt,
-            status: 'ACTIVE',
-          },
-        });
-
-      const updatedReservation =
-        await tx.reservation.findUnique({
-          where: {
-            id: reservation.id,
-          },
-          include: {
-            table: true,
-          },
-        });
-
-      return {
-        success: true,
-        reservation: updatedReservation,
-        table: updatedTable,
-        session,
-        package: selectedPackage,
-      };
-    });
-  }
+    return {
+      success: true,
+      reservation: updatedReservation,
+      table: updatedTable,
+      session,
+      package: selectedPackage,
+    };
+  });
+}
 }

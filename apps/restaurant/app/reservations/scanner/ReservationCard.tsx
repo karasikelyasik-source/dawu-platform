@@ -29,28 +29,18 @@ export default function ReservationCard({
   });
 
   const checkedInTime = reservation.checkedInAt
-    ? new Date(
-        reservation.checkedInAt,
-      ).toLocaleTimeString('nl-NL', {
+    ? new Date(reservation.checkedInAt).toLocaleTimeString('nl-NL', {
         hour: '2-digit',
         minute: '2-digit',
       })
     : null;
 
-  const isCheckedIn = Boolean(
-    reservation.checkedInAt,
-  );
-
-  const hasTable = Boolean(
-    reservation.table?.id,
-  );
-
-  const tableIsOpen =
-    reservation.table?.status === 'OCCUPIED';
+  const isCheckedIn = Boolean(reservation.checkedInAt);
+  const hasTable = Boolean(reservation.table?.id);
+  const tableIsOpen = reservation.table?.status === 'OCCUPIED';
 
   const tableName = reservation.table
-    ? reservation.table.label ||
-      String(reservation.table.number)
+    ? reservation.table.label || String(reservation.table.number)
     : null;
 
   return (
@@ -59,11 +49,9 @@ export default function ReservationCard({
         <div
           className={[
             'mx-auto flex h-14 w-14 items-center justify-center rounded-full text-2xl font-bold',
-            tableIsOpen
+            tableIsOpen || isCheckedIn
               ? 'bg-green-500 text-black'
-              : isCheckedIn
-                ? 'bg-green-500 text-black'
-                : 'bg-yellow-500 text-black',
+              : 'bg-yellow-500 text-black',
           ].join(' ')}
         >
           {tableIsOpen || isCheckedIn ? '✓' : '•'}
@@ -88,38 +76,20 @@ export default function ReservationCard({
           {reservation.name}
         </h2>
 
-        {isCheckedIn &&
-          checkedInTime &&
-          !tableIsOpen && (
-            <p className="mt-2 text-sm text-green-300">
-              Checked in at {checkedInTime}
-            </p>
-          )}
+        {isCheckedIn && checkedInTime && !tableIsOpen && (
+          <p className="mt-2 text-sm text-green-300">
+            Checked in at {checkedInTime}
+          </p>
+        )}
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <Info
-          label="Guests"
-          value={String(reservation.guests)}
-        />
-
-        <Info
-          label="Time"
-          value={reservationTime}
-        />
-
-        <Info
-          label="Status"
-          value={reservation.status}
-        />
-
+        <Info label="Guests" value={String(reservation.guests)} />
+        <Info label="Time" value={reservationTime} />
+        <Info label="Status" value={reservation.status} />
         <Info
           label="Table"
-          value={
-            tableName
-              ? `Table ${tableName}`
-              : '—'
-          }
+          value={tableName ? `Table ${tableName}` : '—'}
         />
       </div>
 
@@ -135,8 +105,7 @@ export default function ReservationCard({
 
           {openedPackageName && (
             <p className="mt-2 text-sm text-green-200">
-              {openedPackageName} ·{' '}
-              {reservation.guests} guests
+              {openedPackageName} · {reservation.guests} guests
             </p>
           )}
 
@@ -166,35 +135,29 @@ export default function ReservationCard({
             disabled={checkingIn}
             className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400 disabled:opacity-50"
           >
-            {checkingIn
-              ? 'Checking in...'
-              : 'Check In'}
+            {checkingIn ? 'Checking in...' : 'Check In'}
           </button>
         )}
 
-        {isCheckedIn &&
-          !hasTable &&
-          !tableIsOpen && (
-            <button
-              type="button"
-              onClick={onAssignTable}
-              className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400"
-            >
-              Assign Table
-            </button>
-          )}
+        {isCheckedIn && !hasTable && (
+          <button
+            type="button"
+            onClick={onAssignTable}
+            className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400"
+          >
+            Assign Table
+          </button>
+        )}
 
-        {isCheckedIn &&
-          hasTable &&
-          !tableIsOpen && (
-            <button
-              type="button"
-              onClick={onChoosePackage}
-              className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400"
-            >
-              Choose Menu & Open Table
-            </button>
-          )}
+        {isCheckedIn && hasTable && !tableIsOpen && (
+          <button
+            type="button"
+            onClick={onChoosePackage}
+            className="w-full rounded-2xl bg-yellow-500 px-5 py-4 text-base font-semibold text-black transition hover:bg-yellow-400"
+          >
+            Choose Menu & Open Table
+          </button>
+        )}
 
         <button
           type="button"

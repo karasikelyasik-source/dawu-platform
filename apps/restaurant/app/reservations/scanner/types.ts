@@ -61,4 +61,27 @@ export type OpenTableResponse = {
     status: string;
   };
   package: RestaurantPackage;
+  export type RestaurantPackage = {
+  id: string;
+  name: string;
+  price: number;
+  btwRate: number;
+};
+
+export type OpenTableResponse = {
+  success: boolean;
+  reservation: Reservation;
+  table: RestaurantTable & {
+    selectedPackage?: string | null;
+    selectedGuests?: number | null;
+  };
+  session: {
+    id: string;
+    guests: number;
+    packageType: 'STANDARD' | 'DELUXE';
+    startedAt: string;
+    expiresAt: string;
+    status: string;
+  };
+  package: RestaurantPackage;
 };

@@ -152,6 +152,7 @@ export default function ReservationScannerPage() {
     openedPackageName,
     setOpenedPackageName,
   ] = useState('');
+  
 
   const handleScan = useCallback(
     async (value: string) => {

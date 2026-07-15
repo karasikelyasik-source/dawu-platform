@@ -131,14 +131,22 @@ export default function AuthModal({ onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-0 backdrop-blur-md sm:items-center sm:p-6"
+      className="fixed inset-0 z-[100] overflow-y-auto bg-black/80 backdrop-blur-md"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
         }
       }}
     >
-      <div className="max-h-[94vh] w-full max-w-lg overflow-y-auto rounded-t-[32px] border border-white/10 bg-[#0d0b0a] p-6 shadow-2xl sm:rounded-[32px] sm:p-8">
+      <div
+        className="flex min-h-full items-start justify-center p-4 sm:items-center sm:p-6"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            onClose();
+          }
+        }}
+      >
+        <div className="my-auto max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto rounded-[32px] border border-white/10 bg-[#0d0b0a] p-6 shadow-2xl sm:max-h-[calc(100vh-3rem)] sm:p-8">
         <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-white/20 sm:hidden" />
 
         <div className="flex items-start justify-between gap-5">
@@ -343,6 +351,7 @@ export default function AuthModal({ onClose }: Props) {
             {error}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

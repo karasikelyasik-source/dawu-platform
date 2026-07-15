@@ -39,6 +39,19 @@ enum KitchenStationType {
   HOT_KITCHEN
 }
 
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+}
+
 model Table {
   id     String      @id @default(cuid())
   number Int         @unique
@@ -49,38 +62,39 @@ model Table {
   selectedGuests   Int?
   selectedPackages Json?
 
-label String?
-  note String?
-  
+  label String?
+  note  String?
+
   reservations Reservation[]
   sessions     TableSession[]
   orderLogs    TableOrderLog[]
   logs         TableLog[]
-  payments Payment[]
+  payments     Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model Reservation {
-  id      String @id @default(cuid())
+  id      String  @id @default(cuid())
   name    String
   phone   String
   email   String?
   message String?
   guests  Int
-  
 
   startTime DateTime
   endTime   DateTime
 
   status ReservationStatus @default(PENDING)
 
-qrToken String? @unique
-checkedInAt DateTime?
+  qrToken     String?   @unique
+  checkedInAt DateTime?
 
   tableId String?
   table   Table?  @relation(fields: [tableId], references: [id])
+
+  customerLinks CustomerReservation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,18 +109,13 @@ model TableSession {
   participants SessionParticipant[]
   orders       Order[]
 
-  guests Int
-
-  packageType PackageType
-
-  startedAt DateTime @default(now())
-  expiresAt DateTime
-
-  currentRound Int @default(1)
-
+  guests        Int
+  packageType   PackageType
+  startedAt     DateTime      @default(now())
+  expiresAt     DateTime
+  currentRound  Int           @default(1)
   cooldownUntil DateTime?
-
-  status SessionStatus @default(ACTIVE)
+  status        SessionStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -115,14 +124,14 @@ model TableSession {
 model KitchenStation {
   id String @id @default(cuid())
 
-  name String @unique
+  name String             @unique
   type KitchenStationType
 
   items MenuItem[]
 
-  printerIp String?
-  tickets KitchenTicket[]
-  receiptPrinter Boolean @default(false)
+  printerIp      String?
+  tickets        KitchenTicket[]
+  receiptPrinter Boolean         @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -131,12 +140,10 @@ model KitchenStation {
 model MenuCategory {
   id String @id @default(cuid())
 
-  name String
-  slug String @unique
-
-  sortOrder Int @default(0)
-
-  items MenuItem[]
+  name      String
+  slug      String     @unique
+  sortOrder Int        @default(0)
+  items     MenuItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -147,17 +154,12 @@ model MenuItem {
 
   name        String
   description String?
-
-  price Float?
-btwRate       Float    @default(9)
-
-  orderItems OrderItem[]
-
-  image String?
-
-  isActive Boolean @default(true)
-
-  isDelivery Boolean @default(false)
+  price       Float?
+  btwRate     Float       @default(9)
+  orderItems  OrderItem[]
+  image       String?
+  isActive    Boolean     @default(true)
+  isDelivery  Boolean     @default(false)
 
   categoryId String
   category   MenuCategory @relation(fields: [categoryId], references: [id])
@@ -174,11 +176,10 @@ btwRate       Float    @default(9)
 model Package {
   id String @id @default(cuid())
 
-  name  String @unique
-  price Float  @default(0)
-  btwRate     Float    @default(9)
-
-  items PackageMenuItem[]
+  name    String            @unique
+  price   Float             @default(0)
+  btwRate Float             @default(9)
+  items   PackageMenuItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -190,8 +191,7 @@ model PackageMenuItem {
   packageId  String
   menuItemId String
 
-  package Package @relation(fields: [packageId], references: [id])
-
+  package  Package  @relation(fields: [packageId], references: [id])
   menuItem MenuItem @relation(fields: [menuItemId], references: [id])
 
   createdAt DateTime @default(now())
@@ -199,25 +199,14 @@ model PackageMenuItem {
   @@unique([packageId, menuItemId])
 }
 
-enum OrderStatus {
-  PENDING
-  PREPARING
-  READY
-  SERVED
-  CANCELLED
-}
-
 model SessionParticipant {
   id String @id @default(cuid())
 
   sessionId String
   session   TableSession @relation(fields: [sessionId], references: [id])
-
-  name String?
-
-  joinedAt DateTime @default(now())
-
-  orders Order[]
+  name      String?
+  joinedAt  DateTime     @default(now())
+  orders    Order[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -233,12 +222,9 @@ model Order {
   participant   SessionParticipant @relation(fields: [participantId], references: [id])
 
   roundNumber Int
-
-  status OrderStatus @default(PENDING)
-
-  submittedAt DateTime @default(now())
-
-  items OrderItem[]
+  status      OrderStatus @default(PENDING)
+  submittedAt DateTime    @default(now())
+  items       OrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -253,27 +239,19 @@ model OrderItem {
   menuItemId String
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
 
-  quantity Int @default(1)
-
-  notes String?
+  quantity Int     @default(1)
+  notes    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-enum UserRole {
-  ADMIN
-  STAFF
-}
-
 model User {
   id String @id @default(cuid())
 
-  email    String @unique
+  email    String    @unique
   password String
-
-  role UserRole @default(STAFF)
-
+  role     UserRole  @default(STAFF)
   sessions Session[]
 
   createdAt DateTime @default(now())
@@ -281,14 +259,13 @@ model User {
 }
 
 model TableOrderLog {
-  id        String   @id @default(cuid())
+  id String @id @default(cuid())
 
-  tableId   String
-  table     Table    @relation(fields: [tableId], references: [id])
-
-  itemName  String
-  price     Float
-  btwRate   Float    @default(9)
+  tableId  String
+  table    Table  @relation(fields: [tableId], references: [id])
+  itemName String
+  price    Float
+  btwRate  Float  @default(9)
 
   createdAt DateTime @default(now())
 }
@@ -296,166 +273,180 @@ model TableOrderLog {
 model TableLog {
   id String @id @default(cuid())
 
-  tableId String
-  table   Table  @relation(fields: [tableId], references: [id])
-
-  type    String
-  message String
-
-beforeData Json?
-afterData  Json?
-undone     Boolean @default(false)
+  tableId    String
+  table      Table   @relation(fields: [tableId], references: [id])
+  type       String
+  message    String
+  beforeData Json?
+  afterData  Json?
+  undone     Boolean @default(false)
 
   createdAt DateTime @default(now())
 }
+
 model KitchenTicket {
-  id          String   @id @default(cuid())
+  id String @id @default(cuid())
 
   tableId     String?
   tableNumber Int?
-
   itemName    String
-  quantity    Int      @default(1)
+  quantity    Int     @default(1)
 
-  stationId   String?
-  station     KitchenStation? @relation(fields: [stationId], references: [id])
+  stationId String?
+  station   KitchenStation? @relation(fields: [stationId], references: [id])
 
   printerName String?
-  printed     Boolean  @default(false)
-
-  createdAt   DateTime @default(now())
-}
-model Payment {
-  id        String   @id @default(cuid())
-
-  tableId   String
-  table     Table    @relation(fields: [tableId], references: [id])
-
-  tableNumber Int
-
-  method    String
-  total     Float
-  paid      Float?
-  change    Float?
-  tip       Float @default(0)
-  discount Float @default(0)
+  printed     Boolean @default(false)
 
   createdAt DateTime @default(now())
 }
+
+model Payment {
+  id String @id @default(cuid())
+
+  tableId     String
+  table       Table  @relation(fields: [tableId], references: [id])
+  tableNumber Int
+  method      String
+  total       Float
+  paid        Float?
+  change      Float?
+  tip         Float  @default(0)
+  discount    Float  @default(0)
+
+  createdAt DateTime @default(now())
+}
+
 model Session {
   id String @id @default(cuid())
 
-  userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  ip String?
-  userAgent String?
-
-  online Boolean @default(true)
-  banned Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ip         String?
+  userAgent  String?
+  online     Boolean  @default(true)
+  banned     Boolean  @default(false)
+  createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
 }
 
 model BannedIp {
-  id String @id @default(cuid())
-
-  ip String @unique
-
-  reason String?
+  id        String    @id @default(cuid())
+  ip        String    @unique
+  reason    String?
   expiresAt DateTime?
-
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
 
 model BannedEmail {
-  id String @id @default(cuid())
-
-  email String @unique
-
-  reason String?
+  id        String    @id @default(cuid())
+  email     String    @unique
+  reason    String?
   expiresAt DateTime?
-
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 }
+
 model TakeAwayCategory {
-  id String @id @default(cuid())
-
-  name String
-  sortOrder Int @default(0)
-
-  items TakeAwayItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String         @id @default(cuid())
+  name      String
+  sortOrder Int            @default(0)
+  items     TakeAwayItem[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model TakeAwayItem {
-  id String @id @default(cuid())
-
-  name String
-  price Float
-  btwRate Float @default(9)
-
+  id       String  @id @default(cuid())
+  name     String
+  price    Float
+  btwRate  Float   @default(9)
   isActive Boolean @default(true)
 
   categoryId String
-  category TakeAwayCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  category   TakeAwayCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 model TakeAwayOrder {
-  id String @id @default(cuid())
-
+  id          String              @id @default(cuid())
   orderNumber Int
-  method String
-  total Float
-  paid Float?
-  change Float?
-  tip Float @default(0)
-
-  items TakeAwayOrderItem[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  method      String
+  total       Float
+  paid        Float?
+  change      Float?
+  tip         Float               @default(0)
+  items       TakeAwayOrderItem[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 }
 
 model TakeAwayOrderItem {
   id String @id @default(cuid())
 
   orderId String
-  order TakeAwayOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   TakeAwayOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
-  itemId String?
+  itemId   String?
   itemName String
-  price Float
-  quantity Int @default(1)
-  btwRate Float @default(9)
+  price    Float
+  quantity Int     @default(1)
+  btwRate  Float   @default(9)
 
   createdAt DateTime @default(now())
 }
+
 model SystemLog {
-  id String @id @default(cuid())
-
-  type String
-  level String @default("INFO")
-
-  message String
-
-  tableId String?
+  id          String   @id @default(cuid())
+  type        String
+  level       String   @default("INFO")
+  message     String
+  tableId     String?
   tableNumber Int?
+  userId      String?
+  userEmail   String?
+  ip          String?
+  userAgent   String?
+  beforeData  Json?
+  afterData   Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+}
 
-  userId String?
-  userEmail String?
+model Customer {
+  id       String  @id @default(cuid())
+  name     String
+  email    String  @unique
+  phone    String?
+  password String
 
-  ip String?
-  userAgent String?
-
-  beforeData Json?
-  afterData Json?
-  metadata Json?
+  sessions     CustomerSession[]
+  reservations CustomerReservation[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CustomerSession {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  token      String   @unique
+  createdAt  DateTime @default(now())
+}
+
+model CustomerReservation {
+  id String @id @default(cuid())
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([customerId, reservationId])
 }

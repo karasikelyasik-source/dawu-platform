@@ -415,14 +415,27 @@ model SystemLog {
 }
 
 model Customer {
-  id       String  @id @default(cuid())
+  id String @id @default(cuid())
+
   name     String
   email    String  @unique
   phone    String?
   password String
 
+  role CustomerRole @default(CUSTOMER)
+
+  isBlocked     Boolean   @default(false)
+  blockedAt     DateTime?
+  blockedReason String?
+
+  deletedAt DateTime?
+
+  mustChangePassword Boolean @default(false)
+
   sessions     CustomerSession[]
   reservations CustomerReservation[]
+
+  adminActions CustomerAdminAuditLog[] @relation("AdminActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -433,8 +446,17 @@ model CustomerSession {
 
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  token      String   @unique
-  createdAt  DateTime @default(now())
+
+  token String @unique
+
+  ip        String?
+  userAgent String?
+
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime?
+
+  @@index([customerId])
 }
 
 model CustomerReservation {
@@ -449,4 +471,33 @@ model CustomerReservation {
   createdAt DateTime @default(now())
 
   @@unique([customerId, reservationId])
+}
+
+enum CustomerRole {
+  CUSTOMER
+  ADMIN
+  OWNER
+}
+
+model CustomerAdminAuditLog {
+  id String @id @default(cuid())
+
+  actorId String
+  actor   Customer @relation("AdminActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  targetCustomerId String?
+
+  action String
+
+  beforeData Json?
+  afterData  Json?
+
+  ip        String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([targetCustomerId])
+  @@index([createdAt])
 }

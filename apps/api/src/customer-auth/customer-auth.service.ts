@@ -25,12 +25,12 @@ export class CustomerAuthService {
       phone?: string;
       password?: string;
     },
-    _sessionInfo?: SessionInfo,
+    sessionInfo?: SessionInfo,
   ) {
-    const name = data.name?.trim();
-    const email = data.email?.trim().toLowerCase();
-    const phone = data.phone?.trim() || null;
-    const password = data.password || '';
+    const name = data?.name?.trim();
+    const email = data?.email?.trim().toLowerCase();
+    const phone = data?.phone?.trim() || null;
+    const password = data?.password || '';
 
     if (!name) {
       throw new BadRequestException('Name is required');
@@ -41,7 +41,9 @@ export class CustomerAuthService {
     }
 
     if (!this.isValidEmail(email)) {
-      throw new BadRequestException('Enter a valid email address');
+      throw new BadRequestException(
+        'Enter a valid email address',
+      );
     }
 
     if (password.length < 8) {
@@ -50,11 +52,12 @@ export class CustomerAuthService {
       );
     }
 
-    const existingCustomer = await this.prisma.customer.findUnique({
-      where: {
-        email,
-      },
-    });
+    const existingCustomer =
+      await this.prisma.customer.findUnique({
+        where: {
+          email,
+        },
+      });
 
     if (existingCustomer) {
       throw new ConflictException(
@@ -62,89 +65,61 @@ export class CustomerAuthService {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(
+      password,
+      12,
+    );
+
     const token = this.createSessionToken();
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const customer = await tx.customer.create({
-        data: {
-          name,
-          email,
-          phone,
-          password: hashedPassword,
-        },
-      });
+    const customer =
+      await this.prisma.$transaction(async (tx) => {
+        const createdCustomer =
+          await tx.customer.create({
+            data: {
+              name,
+              email,
+              phone,
+              password: hashedPassword,
+              role: 'CUSTOMER',
+              isBlocked: false,
+              mustChangePassword: false,
+            },
+          });
 
-      await tx.customerSession.create({
-        data: {
-          customerId: customer.id,
-          token,
-        },
-      });
+        await tx.customerSession.create({
+          data: {
+            customerId: createdCustomer.id,
+            token,
+            ip: sessionInfo?.ip || null,
+            userAgent:
+              sessionInfo?.userAgent || null,
+            lastSeenAt: new Date(),
+            expiresAt: this.createSessionExpiry(),
+          },
+        });
 
-      return customer;
-    });
+        return createdCustomer;
+      });
 
     return {
-      customer: this.toPublicCustomer(result),
+      customer: this.toPublicCustomer(customer),
       token,
     };
   }
 
-
-async getReservations(token?: string | null) {
-  if (!token) {
-    throw new UnauthorizedException(
-      'Not authenticated',
-    );
-  }
-
-  const session =
-    await this.prisma.customerSession.findUnique({
-      where: {
-        token,
-      },
-      select: {
-        customerId: true,
-      },
-    });
-
-  if (!session) {
-    throw new UnauthorizedException(
-      'Session is invalid or has expired',
-    );
-  }
-
-  const links =
-    await this.prisma.customerReservation.findMany({
-      where: {
-        customerId: session.customerId,
-      },
-      include: {
-        reservation: {
-          include: {
-            table: true,
-          },
-        },
-      },
-      orderBy: {
-        reservation: {
-          startTime: 'desc',
-        },
-      },
-    });
-
-  return links.map(({ reservation }) => reservation);
-}
   async login(
     data: {
       email?: string;
       password?: string;
     },
-    _sessionInfo?: SessionInfo,
+    sessionInfo?: SessionInfo,
   ) {
-    const email = data.email?.trim().toLowerCase();
-    const password = data.password || '';
+    const email = data?.email
+      ?.trim()
+      .toLowerCase();
+
+    const password = data?.password || '';
 
     if (!email || !password) {
       throw new BadRequestException(
@@ -152,16 +127,32 @@ async getReservations(token?: string | null) {
       );
     }
 
-    const customer = await this.prisma.customer.findUnique({
-      where: {
-        email,
-      },
-    });
+    const customer =
+      await this.prisma.customer.findUnique({
+        where: {
+          email,
+        },
+      });
 
     if (!customer) {
       throw new UnauthorizedException(
         'Invalid email or password',
       );
+    }
+
+    if (customer.deletedAt) {
+      throw new UnauthorizedException(
+        'This account is no longer active',
+      );
+    }
+
+    if (customer.isBlocked) {
+      throw new UnauthorizedException({
+        message: 'This account has been blocked',
+        reason:
+          customer.blockedReason ||
+          'Please contact DaWu support',
+      });
     }
 
     const validPassword = await bcrypt.compare(
@@ -181,6 +172,11 @@ async getReservations(token?: string | null) {
       data: {
         customerId: customer.id,
         token,
+        ip: sessionInfo?.ip || null,
+        userAgent:
+          sessionInfo?.userAgent || null,
+        lastSeenAt: new Date(),
+        expiresAt: this.createSessionExpiry(),
       },
     });
 
@@ -190,19 +186,24 @@ async getReservations(token?: string | null) {
     };
   }
 
-  async getCurrentCustomer(token?: string | null) {
+  async getCurrentCustomer(
+    token?: string | null,
+  ) {
     if (!token) {
-      throw new UnauthorizedException('Not authenticated');
+      throw new UnauthorizedException(
+        'Not authenticated',
+      );
     }
 
-    const session = await this.prisma.customerSession.findUnique({
-      where: {
-        token,
-      },
-      include: {
-        customer: true,
-      },
-    });
+    const session =
+      await this.prisma.customerSession.findUnique({
+        where: {
+          token,
+        },
+        include: {
+          customer: true,
+        },
+      });
 
     if (!session) {
       throw new UnauthorizedException(
@@ -210,7 +211,90 @@ async getReservations(token?: string | null) {
       );
     }
 
-    return this.toPublicCustomer(session.customer);
+    if (
+      session.expiresAt &&
+      session.expiresAt.getTime() < Date.now()
+    ) {
+      await this.prisma.customerSession.delete({
+        where: {
+          id: session.id,
+        },
+      });
+
+      throw new UnauthorizedException(
+        'Session has expired',
+      );
+    }
+
+    if (session.customer.deletedAt) {
+      await this.prisma.customerSession.deleteMany({
+        where: {
+          customerId: session.customer.id,
+        },
+      });
+
+      throw new UnauthorizedException(
+        'This account is no longer active',
+      );
+    }
+
+    if (session.customer.isBlocked) {
+      await this.prisma.customerSession.deleteMany({
+        where: {
+          customerId: session.customer.id,
+        },
+      });
+
+      throw new UnauthorizedException({
+        message: 'This account has been blocked',
+        reason:
+          session.customer.blockedReason ||
+          'Please contact DaWu support',
+      });
+    }
+
+    await this.prisma.customerSession.update({
+      where: {
+        id: session.id,
+      },
+      data: {
+        lastSeenAt: new Date(),
+      },
+    });
+
+    return this.toPublicCustomer(
+      session.customer,
+    );
+  }
+
+  async getReservations(
+    token?: string | null,
+  ) {
+    const customer =
+      await this.getAuthenticatedCustomer(token);
+
+    const links =
+      await this.prisma.customerReservation.findMany({
+        where: {
+          customerId: customer.id,
+        },
+        include: {
+          reservation: {
+            include: {
+              table: true,
+            },
+          },
+        },
+        orderBy: {
+          reservation: {
+            startTime: 'desc',
+          },
+        },
+      });
+
+    return links.map(
+      ({ reservation }) => reservation,
+    );
   }
 
   async logout(token?: string | null) {
@@ -231,12 +315,100 @@ async getReservations(token?: string | null) {
     };
   }
 
+  private async getAuthenticatedCustomer(
+    token?: string | null,
+  ) {
+    if (!token) {
+      throw new UnauthorizedException(
+        'Not authenticated',
+      );
+    }
+
+    const session =
+      await this.prisma.customerSession.findUnique({
+        where: {
+          token,
+        },
+        include: {
+          customer: true,
+        },
+      });
+
+    if (!session) {
+      throw new UnauthorizedException(
+        'Session is invalid or has expired',
+      );
+    }
+
+    if (
+      session.expiresAt &&
+      session.expiresAt.getTime() < Date.now()
+    ) {
+      await this.prisma.customerSession.delete({
+        where: {
+          id: session.id,
+        },
+      });
+
+      throw new UnauthorizedException(
+        'Session has expired',
+      );
+    }
+
+    if (session.customer.deletedAt) {
+      await this.prisma.customerSession.deleteMany({
+        where: {
+          customerId: session.customer.id,
+        },
+      });
+
+      throw new UnauthorizedException(
+        'This account is no longer active',
+      );
+    }
+
+    if (session.customer.isBlocked) {
+      await this.prisma.customerSession.deleteMany({
+        where: {
+          customerId: session.customer.id,
+        },
+      });
+
+      throw new UnauthorizedException({
+        message: 'This account has been blocked',
+        reason:
+          session.customer.blockedReason ||
+          'Please contact DaWu support',
+      });
+    }
+
+    await this.prisma.customerSession.update({
+      where: {
+        id: session.id,
+      },
+      data: {
+        lastSeenAt: new Date(),
+      },
+    });
+
+    return session.customer;
+  }
+
   private createSessionToken() {
     return randomBytes(48).toString('hex');
   }
 
+  private createSessionExpiry() {
+    return new Date(
+      Date.now() +
+        30 * 24 * 60 * 60 * 1000,
+    );
+  }
+
   private isValidEmail(email: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      email,
+    );
   }
 
   private toPublicCustomer(customer: {
@@ -244,6 +416,10 @@ async getReservations(token?: string | null) {
     name: string;
     email: string;
     phone: string | null;
+    role: 'CUSTOMER' | 'ADMIN' | 'OWNER';
+    isBlocked: boolean;
+    blockedReason: string | null;
+    mustChangePassword: boolean;
     createdAt: Date;
     updatedAt: Date;
   }) {
@@ -252,6 +428,12 @@ async getReservations(token?: string | null) {
       name: customer.name,
       email: customer.email,
       phone: customer.phone,
+      role: customer.role,
+      isBlocked: customer.isBlocked,
+      blockedReason:
+        customer.blockedReason,
+      mustChangePassword:
+        customer.mustChangePassword,
       createdAt: customer.createdAt,
       updatedAt: customer.updatedAt,
     };

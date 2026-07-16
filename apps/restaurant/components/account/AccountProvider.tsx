@@ -15,6 +15,13 @@ export type Customer = {
   name: string;
   email: string;
   phone?: string | null;
+
+  role: 'CUSTOMER' | 'ADMIN' | 'OWNER';
+
+  isBlocked: boolean;
+  blockedReason?: string | null;
+  mustChangePassword: boolean;
+
   createdAt: string;
   updatedAt: string;
 };

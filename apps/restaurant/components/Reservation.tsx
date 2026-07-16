@@ -1,6 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import {
+  useEffect,
+  useState,
+} from 'react';
+
+import { useAccount } from './account/AccountProvider';
 import Container from './ui/Container';
 import Section from './ui/Section';
 import SectionTitle from './ui/SectionTitle';
@@ -15,7 +20,7 @@ type ReservationForm = {
   message: string;
 };
 
-const INITIAL_FORM: ReservationForm = {
+const EMPTY_FORM: ReservationForm = {
   name: '',
   phone: '',
   email: '',
@@ -26,10 +31,42 @@ const INITIAL_FORM: ReservationForm = {
 };
 
 export default function Reservation() {
-  const [form, setForm] = useState<ReservationForm>(INITIAL_FORM);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
+  const { customer, loading: accountLoading } =
+    useAccount();
+
+  const [form, setForm] =
+    useState<ReservationForm>(EMPTY_FORM);
+
+  const [isSubmitting, setIsSubmitting] =
+    useState(false);
+
+  const [successMessage, setSuccessMessage] =
+    useState('');
+
+  const [errorMessage, setErrorMessage] =
+    useState('');
+
+  useEffect(() => {
+    if (!customer) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      name:
+        current.name.trim() ||
+        customer.name ||
+        '',
+      email:
+        current.email.trim() ||
+        customer.email ||
+        '',
+      phone:
+        current.phone.trim() ||
+        customer.phone ||
+        '',
+    }));
+  }, [customer]);
 
   function updateField(
     field: keyof ReservationForm,
@@ -42,6 +79,18 @@ export default function Reservation() {
 
     setSuccessMessage('');
     setErrorMessage('');
+  }
+
+  function resetFormAfterSuccess() {
+    setForm({
+      name: customer?.name || '',
+      phone: customer?.phone || '',
+      email: customer?.email || '',
+      guests: '2',
+      date: '',
+      time: '',
+      message: '',
+    });
   }
 
   async function submitReservation(
@@ -58,21 +107,29 @@ export default function Reservation() {
     setErrorMessage('');
 
     try {
-      const response = await fetch('/api/public/reservations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        '/api/public/reservations',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            email:
+              form.email.trim() ||
+              undefined,
+            guests: Number(form.guests),
+            date: form.date,
+            time: form.time,
+            message:
+              form.message.trim() ||
+              undefined,
+          }),
         },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          phone: form.phone.trim(),
-          email: form.email.trim() || undefined,
-          guests: Number(form.guests),
-          date: form.date,
-          time: form.time,
-          message: form.message.trim() || undefined,
-        }),
-      });
+      );
 
       const responseBody = await response
         .json()
@@ -80,21 +137,37 @@ export default function Reservation() {
 
       if (!response.ok) {
         const message =
-          responseBody?.message &&
-          typeof responseBody.message === 'string'
+          typeof responseBody?.message ===
+          'string'
             ? responseBody.message
-            : 'Reservation could not be created. Please try again.';
+            : Array.isArray(
+                  responseBody?.message,
+                )
+              ? responseBody.message.join(
+                  ', ',
+                )
+              : 'Reservation could not be created. Please try again.';
 
         throw new Error(message);
       }
 
+      const linkedToAccount =
+        Boolean(
+          responseBody?.linkedToAccount,
+        );
+
       setSuccessMessage(
-        'Thank you! Your reservation has been confirmed. Please check your email.',
+        linkedToAccount
+          ? 'Your reservation has been confirmed and added to My Reservations. Please check your email for the QR code.'
+          : 'Your reservation has been confirmed. Please check your email for the QR code.',
       );
 
-      setForm(INITIAL_FORM);
+      resetFormAfterSuccess();
     } catch (error) {
-      console.error('Reservation creation failed:', error);
+      console.error(
+        'Reservation creation failed:',
+        error,
+      );
 
       setErrorMessage(
         error instanceof Error
@@ -106,6 +179,9 @@ export default function Reservation() {
     }
   }
 
+  const formDisabled =
+    isSubmitting || accountLoading;
+
   return (
     <Section
       id="reservation"
@@ -113,127 +189,219 @@ export default function Reservation() {
     >
       <Container>
         <div className="grid gap-16 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-          <SectionTitle
-            subtitle="Reservation"
-            title="Reserve your table at DaWu."
-            description="Book your table online and receive your confirmation and QR code by email."
-          />
+          <div>
+            <SectionTitle
+              subtitle="Reservation"
+              title="Reserve your table at DaWu."
+              description="Book your table online and receive your confirmation and QR code by email."
+            />
+
+            {customer && (
+              <div className="mt-7 rounded-[26px] border border-amber-300/20 bg-amber-300/[0.06] p-5">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-amber-300">
+                  Signed in
+                </p>
+
+                <p className="mt-2 text-lg font-black text-white">
+                  {customer.name}
+                </p>
+
+                <p className="mt-1 text-sm text-zinc-400">
+                  This reservation will
+                  automatically appear in My
+                  Reservations.
+                </p>
+              </div>
+            )}
+          </div>
 
           <form
             onSubmit={submitReservation}
-            className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 backdrop-blur"
+            className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur sm:p-8"
           >
             <div className="grid gap-4 md:grid-cols-2">
-              <input
+              <Field
+                label="Name"
                 value={form.name}
-                onChange={(event) =>
-                  updateField('name', event.target.value)
-                }
-                placeholder="Name"
+                placeholder="Your name"
                 autoComplete="name"
-                required
-                disabled={isSubmitting}
-                className="rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={formDisabled}
+                onChange={(value) =>
+                  updateField(
+                    'name',
+                    value,
+                  )
+                }
               />
 
-              <input
+              <Field
+                label="Phone"
                 value={form.phone}
-                onChange={(event) =>
-                  updateField('phone', event.target.value)
-                }
-                placeholder="Phone"
+                placeholder="+31..."
                 type="tel"
                 autoComplete="tel"
-                required
-                disabled={isSubmitting}
-                className="rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={formDisabled}
+                onChange={(value) =>
+                  updateField(
+                    'phone',
+                    value,
+                  )
+                }
               />
 
-              <input
+              <Field
+                label="Email"
                 value={form.email}
-                onChange={(event) =>
-                  updateField('email', event.target.value)
-                }
-                placeholder="Email"
+                placeholder="your@email.com"
                 type="email"
                 autoComplete="email"
-                required
-                disabled={isSubmitting}
-                className="rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={formDisabled}
+                onChange={(value) =>
+                  updateField(
+                    'email',
+                    value,
+                  )
+                }
               />
 
-              <input
+              <Field
+                label="Guests"
                 value={form.guests}
-                onChange={(event) =>
-                  updateField('guests', event.target.value)
-                }
-                placeholder="Guests"
+                placeholder="2"
                 type="number"
                 min="1"
                 max="50"
-                required
-                disabled={isSubmitting}
-                className="rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={formDisabled}
+                onChange={(value) =>
+                  updateField(
+                    'guests',
+                    value,
+                  )
+                }
               />
 
-              <input
+              <Field
+                label="Date"
                 value={form.date}
-                onChange={(event) =>
-                  updateField('date', event.target.value)
-                }
+                placeholder=""
                 type="date"
-                required
-                disabled={isSubmitting}
-                className="rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={formDisabled}
+                onChange={(value) =>
+                  updateField(
+                    'date',
+                    value,
+                  )
+                }
               />
 
-              <input
+              <Field
+                label="Time"
                 value={form.time}
-                onChange={(event) =>
-                  updateField('time', event.target.value)
-                }
+                placeholder=""
                 type="time"
-                required
-                disabled={isSubmitting}
-                className="rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={formDisabled}
+                onChange={(value) =>
+                  updateField(
+                    'time',
+                    value,
+                  )
+                }
               />
             </div>
 
-            <textarea
-              value={form.message}
-              onChange={(event) =>
-                updateField('message', event.target.value)
-              }
-              placeholder="Special request"
-              rows={5}
-              disabled={isSubmitting}
-              className="mt-4 w-full resize-none rounded-2xl border border-white/10 bg-black/50 px-5 py-4 outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
-            />
+            <label className="mt-4 block">
+              <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+                Special request
+              </span>
+
+              <textarea
+                value={form.message}
+                onChange={(event) =>
+                  updateField(
+                    'message',
+                    event.target.value,
+                  )
+                }
+                placeholder="Allergies, accessibility, birthday..."
+                rows={5}
+                disabled={formDisabled}
+                className="w-full resize-none rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
 
             {successMessage && (
-              <div className="mt-5 rounded-2xl border border-green-700/50 bg-green-950/40 px-5 py-4 text-sm text-green-200">
+              <div className="mt-5 rounded-2xl border border-green-700/50 bg-green-950/40 px-5 py-4 text-sm leading-6 text-green-200">
                 {successMessage}
               </div>
             )}
 
             {errorMessage && (
-              <div className="mt-5 rounded-2xl border border-red-800/60 bg-red-950/40 px-5 py-4 text-sm text-red-200">
+              <div className="mt-5 rounded-2xl border border-red-800/60 bg-red-950/40 px-5 py-4 text-sm leading-6 text-red-200">
                 {errorMessage}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="mt-6 rounded-full bg-amber-300 px-9 py-5 text-sm font-black uppercase tracking-[0.2em] text-black transition hover:scale-105 hover:bg-amber-200 disabled:cursor-not-allowed disabled:scale-100 disabled:opacity-60"
+              disabled={formDisabled}
+              className="mt-6 flex min-h-14 w-full items-center justify-center rounded-full bg-amber-300 px-9 py-4 text-sm font-black uppercase tracking-[0.2em] text-black transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
             >
-              {isSubmitting
-                ? 'Creating reservation...'
-                : 'Reserve a Table'}
+              {accountLoading
+                ? 'Loading account...'
+                : isSubmitting
+                  ? 'Creating reservation...'
+                  : 'Reserve a Table'}
             </button>
           </form>
         </div>
       </Container>
     </Section>
+  );
+}
+
+type FieldProps = {
+  label: string;
+  value: string;
+  placeholder: string;
+  type?: string;
+  autoComplete?: string;
+  disabled?: boolean;
+  min?: string;
+  max?: string;
+  onChange: (value: string) => void;
+};
+
+function Field({
+  label,
+  value,
+  placeholder,
+  type = 'text',
+  autoComplete,
+  disabled = false,
+  min,
+  max,
+  onChange,
+}: FieldProps) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+        {label}
+      </span>
+
+      <input
+        required
+        value={value}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
+        placeholder={placeholder}
+        type={type}
+        autoComplete={autoComplete}
+        disabled={disabled}
+        min={min}
+        max={max}
+        className="w-full rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white outline-none transition placeholder:text-zinc-600 focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+      />
+    </label>
   );
 }

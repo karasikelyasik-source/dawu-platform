@@ -91,6 +91,51 @@ export class CustomerAuthService {
     };
   }
 
+
+async getReservations(token?: string | null) {
+  if (!token) {
+    throw new UnauthorizedException(
+      'Not authenticated',
+    );
+  }
+
+  const session =
+    await this.prisma.customerSession.findUnique({
+      where: {
+        token,
+      },
+      select: {
+        customerId: true,
+      },
+    });
+
+  if (!session) {
+    throw new UnauthorizedException(
+      'Session is invalid or has expired',
+    );
+  }
+
+  const links =
+    await this.prisma.customerReservation.findMany({
+      where: {
+        customerId: session.customerId,
+      },
+      include: {
+        reservation: {
+          include: {
+            table: true,
+          },
+        },
+      },
+      orderBy: {
+        reservation: {
+          startTime: 'desc',
+        },
+      },
+    });
+
+  return links.map(({ reservation }) => reservation);
+}
   async login(
     data: {
       email?: string;

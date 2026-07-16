@@ -6,6 +6,7 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
+
 import type {
   Request,
   Response,
@@ -28,12 +29,16 @@ export class CustomerAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.customerAuthService.register(
-      body,
-      this.getSessionInfo(request),
-    );
+    const result =
+      await this.customerAuthService.register(
+        body,
+        this.getSessionInfo(request),
+      );
 
-    this.setSessionCookie(response, result.token);
+    this.setSessionCookie(
+      response,
+      result.token,
+    );
 
     return {
       success: true,
@@ -47,12 +52,16 @@ export class CustomerAuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const result = await this.customerAuthService.login(
-      body,
-      this.getSessionInfo(request),
-    );
+    const result =
+      await this.customerAuthService.login(
+        body,
+        this.getSessionInfo(request),
+      );
 
-    this.setSessionCookie(response, result.token);
+    this.setSessionCookie(
+      response,
+      result.token,
+    );
 
     return {
       success: true,
@@ -67,7 +76,21 @@ export class CustomerAuthController {
       CUSTOMER_COOKIE,
     );
 
-    return this.customerAuthService.getCurrentCustomer(token);
+    return this.customerAuthService.getCurrentCustomer(
+      token,
+    );
+  }
+
+  @Get('reservations')
+  reservations(@Req() request: Request) {
+    const token = this.readCookie(
+      request,
+      CUSTOMER_COOKIE,
+    );
+
+    return this.customerAuthService.getReservations(
+      token,
+    );
   }
 
   @Post('logout')
@@ -80,7 +103,10 @@ export class CustomerAuthController {
       CUSTOMER_COOKIE,
     );
 
-    await this.customerAuthService.logout(token);
+    await this.customerAuthService.logout(
+      token,
+    );
+
     this.clearSessionCookie(response);
 
     return {
@@ -94,13 +120,17 @@ export class CustomerAuthController {
 
     const ip =
       typeof forwardedFor === 'string'
-        ? forwardedFor.split(',')[0].trim()
-        : request.socket.remoteAddress || null;
+        ? forwardedFor
+            .split(',')[0]
+            .trim()
+        : request.socket.remoteAddress ||
+          null;
 
     return {
       ip,
       userAgent:
-        request.headers['user-agent'] || null,
+        request.headers['user-agent'] ||
+        null,
     };
   }
 
@@ -121,7 +151,9 @@ export class CustomerAuthController {
     );
   }
 
-  private clearSessionCookie(response: Response) {
+  private clearSessionCookie(
+    response: Response,
+  ) {
     response.setHeader(
       'Set-Cookie',
       [
@@ -139,13 +171,18 @@ export class CustomerAuthController {
     request: Request,
     cookieName: string,
   ) {
-    const cookieHeader = request.headers.cookie;
+    const cookieHeader =
+      request.headers.cookie;
 
     if (!cookieHeader) {
       return null;
     }
 
-    for (const cookiePart of cookieHeader.split(';')) {
+    for (
+      const cookiePart of cookieHeader.split(
+        ';',
+      )
+    ) {
       const [name, ...valueParts] =
         cookiePart.trim().split('=');
 

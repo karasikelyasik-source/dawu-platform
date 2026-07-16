@@ -7,6 +7,9 @@ import { PublicReservationsService } from './public-reservations.service';
 @Module({
   imports: [MailModule],
   controllers: [PublicReservationsController],
-  providers: [PublicReservationsService, PrismaService],
+  providers: [
+    PublicReservationsService,
+    PrismaService,
+  ],
 })
 export class PublicReservationsModule {}

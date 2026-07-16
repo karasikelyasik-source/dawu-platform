@@ -11,6 +11,7 @@ import { SystemLogsModule } from './system-logs/system-logs.module';
 import { PublicReservationsModule } from './public-reservations/public-reservations.module';
 import { MailModule } from './mail/mail.module';
 import { CustomerAuthModule } from './customer-auth/customer-auth.module';
+import { CustomerAdminModule } from './customer-admin/customer-admin.module';
 
 @Module({
 imports: [
@@ -26,6 +27,7 @@ imports: [
   PublicReservationsModule,
   MailModule,
   CustomerAuthModule,
+  CustomerAdminModule,
 ],
 })
 export class AppModule {}

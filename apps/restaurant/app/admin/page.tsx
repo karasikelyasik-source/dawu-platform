@@ -121,6 +121,7 @@ type CustomersResponse = {
 
 type DrawerTab =
   | 'overview'
+  | 'profile'
   | 'reservations'
   | 'sessions'
   | 'support';
@@ -695,6 +696,44 @@ export default function AdminPage() {
               selectedCustomerId,
             )
           }
+          onUpdateProfile={(profile) =>
+            performCustomerAction(
+              () =>
+                fetch(
+                  `${API_URL}/customers/${selectedCustomerId}/profile`,
+                  {
+                    method: 'PATCH',
+                    credentials: 'include',
+                    headers: {
+                      'Content-Type':
+                        'application/json',
+                    },
+                    body: JSON.stringify(profile),
+                  },
+                ),
+              'Customer profile updated successfully.',
+            )
+          }
+          onResetPassword={(password) =>
+            performCustomerAction(
+              () =>
+                fetch(
+                  `${API_URL}/customers/${selectedCustomerId}/reset-password`,
+                  {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                      'Content-Type':
+                        'application/json',
+                    },
+                    body: JSON.stringify({
+                      password,
+                    }),
+                  },
+                ),
+              'Temporary password set. The customer must change it after login.',
+            )
+          }
           onBlock={(reason) =>
             performCustomerAction(
               () =>
@@ -830,11 +869,17 @@ function AdminSidebar({
           ownerOnly
         />
 
-        <SidebarItem
-          title="Audit Log"
-          active={false}
-          ownerOnly
-        />
+        {customer.role === 'OWNER' && (
+          <Link
+            href="/admin/audit-log"
+            className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-black text-zinc-500 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            Audit Log
+            <span className="text-[9px] uppercase tracking-[0.14em] opacity-60">
+              Owner
+            </span>
+          </Link>
+        )}
 
         <SidebarItem
           title="Security"
@@ -1272,6 +1317,8 @@ function CustomerDrawer({
   error,
   success,
   onRefresh,
+  onUpdateProfile,
+  onResetPassword,
   onBlock,
   onUnblock,
   onRevokeSessions,
@@ -1288,6 +1335,12 @@ function CustomerDrawer({
   error: string;
   success: string;
   onRefresh: () => void;
+  onUpdateProfile: (profile: {
+    name: string;
+    email: string;
+    phone: string | null;
+  }) => Promise<void>;
+  onResetPassword: (password: string) => Promise<void>;
   onBlock: (reason: string) => Promise<void>;
   onUnblock: () => Promise<void>;
   onRevokeSessions: () => Promise<void>;
@@ -1382,6 +1435,7 @@ function CustomerDrawer({
                 {(
                   [
                     'overview',
+                    'profile',
                     'reservations',
                     'sessions',
                     'support',
@@ -1424,6 +1478,15 @@ function CustomerDrawer({
               {activeTab === 'overview' && (
                 <CustomerOverview
                   customer={customer}
+                />
+              )}
+
+              {activeTab === 'profile' && (
+                <CustomerProfileEditor
+                  currentCustomer={currentCustomer}
+                  customer={customer}
+                  onUpdateProfile={onUpdateProfile}
+                  onResetPassword={onResetPassword}
                 />
               )}
 
@@ -1702,6 +1765,299 @@ function CustomerSessions({
         Revoke All Sessions
       </button>
     </div>
+  );
+}
+
+
+function CustomerProfileEditor({
+  currentCustomer,
+  customer,
+  onUpdateProfile,
+  onResetPassword,
+}: {
+  currentCustomer: Customer;
+  customer: CustomerDetails;
+  onUpdateProfile: (profile: {
+    name: string;
+    email: string;
+    phone: string | null;
+  }) => Promise<void>;
+  onResetPassword: (password: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(customer.name);
+  const [email, setEmail] = useState(customer.email);
+  const [phone, setPhone] = useState(customer.phone || '');
+  const [temporaryPassword, setTemporaryPassword] =
+    useState('');
+  const [confirmPassword, setConfirmPassword] =
+    useState('');
+  const [savingProfile, setSavingProfile] =
+    useState(false);
+  const [resettingPassword, setResettingPassword] =
+    useState(false);
+  const [localError, setLocalError] = useState('');
+
+  useEffect(() => {
+    setName(customer.name);
+    setEmail(customer.email);
+    setPhone(customer.phone || '');
+    setTemporaryPassword('');
+    setConfirmPassword('');
+    setLocalError('');
+  }, [customer]);
+
+  const protectedAccount =
+    currentCustomer.id === customer.id ||
+    customer.role === 'OWNER';
+
+  async function submitProfile(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (protectedAccount || savingProfile) {
+      return;
+    }
+
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanName) {
+      setLocalError('Name is required.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      setLocalError('Enter a valid email address.');
+      return;
+    }
+
+    setSavingProfile(true);
+    setLocalError('');
+
+    try {
+      await onUpdateProfile({
+        name: cleanName,
+        email: cleanEmail,
+        phone: phone.trim() || null,
+      });
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function submitPasswordReset(
+    event: FormEvent<HTMLFormElement>,
+  ) {
+    event.preventDefault();
+
+    if (protectedAccount || resettingPassword) {
+      return;
+    }
+
+    if (temporaryPassword.length < 8) {
+      setLocalError(
+        'Temporary password must contain at least 8 characters.',
+      );
+      return;
+    }
+
+    if (temporaryPassword !== confirmPassword) {
+      setLocalError('Passwords do not match.');
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Set a temporary password for ${customer.email} and sign the customer out from every device?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setResettingPassword(true);
+    setLocalError('');
+
+    try {
+      await onResetPassword(temporaryPassword);
+      setTemporaryPassword('');
+      setConfirmPassword('');
+    } finally {
+      setResettingPassword(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {localError && (
+        <Notice
+          type="error"
+          message={localError}
+        />
+      )}
+
+      <form
+        onSubmit={submitProfile}
+        className="rounded-[24px] border border-white/[0.08] bg-white/[0.025] p-5"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h3 className="font-black">
+              Customer profile
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-zinc-600">
+              Update the customer name, email address and phone number.
+              Every change is recorded in the audit log.
+            </p>
+          </div>
+
+          <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-blue-300">
+            Support
+          </span>
+        </div>
+
+        <div className="mt-5 space-y-4">
+          <AdminField
+            label="Full name"
+            value={name}
+            onChange={setName}
+            placeholder="Customer name"
+            autoComplete="name"
+            disabled={protectedAccount || savingProfile}
+          />
+
+          <AdminField
+            label="Email address"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            placeholder="customer@example.com"
+            autoComplete="email"
+            disabled={protectedAccount || savingProfile}
+          />
+
+          <AdminField
+            label="Phone number"
+            type="tel"
+            value={phone}
+            onChange={setPhone}
+            placeholder="+31..."
+            autoComplete="tel"
+            required={false}
+            disabled={protectedAccount || savingProfile}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={protectedAccount || savingProfile}
+          className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl bg-white px-5 text-sm font-black text-black transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {savingProfile
+            ? 'Saving profile...'
+            : 'Save profile changes'}
+        </button>
+      </form>
+
+      <form
+        onSubmit={submitPasswordReset}
+        className="rounded-[24px] border border-orange-500/15 bg-orange-500/[0.045] p-5"
+      >
+        <h3 className="font-black text-orange-200">
+          Temporary password
+        </h3>
+
+        <p className="mt-2 text-sm leading-6 text-zinc-600">
+          Set a temporary password for account recovery. This immediately
+          revokes every active session and requires the customer to change
+          the password after the next login.
+        </p>
+
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <AdminField
+            label="Temporary password"
+            type="password"
+            value={temporaryPassword}
+            onChange={setTemporaryPassword}
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
+            disabled={protectedAccount || resettingPassword}
+          />
+
+          <AdminField
+            label="Confirm password"
+            type="password"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            placeholder="Repeat password"
+            autoComplete="new-password"
+            disabled={protectedAccount || resettingPassword}
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={
+            protectedAccount ||
+            resettingPassword ||
+            !temporaryPassword ||
+            !confirmPassword
+          }
+          className="mt-5 flex min-h-12 w-full items-center justify-center rounded-2xl border border-orange-400/20 bg-orange-400/10 px-5 text-sm font-black text-orange-200 transition hover:bg-orange-400/15 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {resettingPassword
+            ? 'Resetting password...'
+            : 'Set temporary password'}
+        </button>
+      </form>
+
+      {protectedAccount && (
+        <p className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-4 text-sm leading-6 text-amber-100/70">
+          The OWNER account and your currently signed-in account are
+          protected from support profile and password changes.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function AdminField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = 'text',
+  autoComplete,
+  required = true,
+  disabled = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: string;
+  autoComplete?: string;
+  required?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-zinc-600">
+        {label}
+      </span>
+
+      <input
+        required={required}
+        disabled={disabled}
+        type={type}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+        className="h-12 w-full rounded-2xl border border-white/10 bg-black/40 px-4 text-sm text-white outline-none transition placeholder:text-zinc-700 focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+      />
+    </label>
   );
 }
 

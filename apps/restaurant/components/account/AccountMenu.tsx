@@ -20,6 +20,10 @@ export default function AccountMenu({
   const { logout } = useAccount();
   const [loggingOut, setLoggingOut] = useState(false);
 
+  const hasAdminAccess =
+    customer.role === 'ADMIN' ||
+    customer.role === 'OWNER';
+
   async function handleLogout() {
     setLoggingOut(true);
 
@@ -87,6 +91,26 @@ export default function AccountMenu({
             description="Delivery orders and status"
             onClick={onClose}
           />
+
+          {hasAdminAccess && (
+            <>
+              <div className="my-2 border-t border-white/10" />
+
+              <MenuLink
+                href="/admin"
+                title="Admins"
+                description="Customer administration panel"
+                onClick={onClose}
+              />
+
+              <MenuLink
+                href="/reservations/scanner"
+                title="Scanner"
+                description="Scan reservation QR codes"
+                onClick={onClose}
+              />
+            </>
+          )}
         </nav>
 
         <div className="border-t border-white/10 p-3">
@@ -121,7 +145,10 @@ function MenuLink({
       onClick={onClick}
       className="block rounded-2xl px-4 py-3 transition hover:bg-white/[0.06]"
     >
-      <p className="font-black text-white">{title}</p>
+      <p className="font-black text-white">
+        {title}
+      </p>
+
       <p className="mt-1 text-xs text-zinc-500">
         {description}
       </p>

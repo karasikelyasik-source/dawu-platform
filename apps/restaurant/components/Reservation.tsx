@@ -34,6 +34,16 @@ export default function Reservation() {
   const { customer, loading: accountLoading } =
     useAccount();
 
+    const RESTAURANT_TEMPORARILY_CLOSED = true;
+
+const hasAdminAccess =
+  customer?.role === 'ADMIN' ||
+  customer?.role === 'OWNER';
+
+const reservationAvailable =
+  !RESTAURANT_TEMPORARILY_CLOSED ||
+  hasAdminAccess;
+  
   const [form, setForm] =
     useState<ReservationForm>(EMPTY_FORM);
 
@@ -215,6 +225,8 @@ export default function Reservation() {
             )}
           </div>
 
+{reservationAvailable ? (
+
           <form
             onSubmit={submitReservation}
             className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 backdrop-blur sm:p-8"
@@ -353,6 +365,31 @@ export default function Reservation() {
                   : 'Reserve a Table'}
             </button>
           </form>
+
+          ) : (
+  <div className="rounded-[2rem] border border-amber-300/20 bg-amber-300/[0.05] p-8">
+    <div className="flex items-center gap-3">
+      <div className="h-3 w-3 rounded-full bg-red-500" />
+
+      <p className="text-sm font-black uppercase tracking-[0.25em] text-amber-300">
+        Temporarily Closed
+      </p>
+    </div>
+
+    <h3 className="mt-6 text-3xl font-black text-white">
+      Reservations are unavailable
+    </h3>
+
+    <p className="mt-4 text-zinc-400 leading-8">
+      DaWu Sushi Fusion is temporarily closed.
+
+      Online reservations are currently unavailable.
+
+      We look forward to welcoming you again soon.
+    </p>
+  </div>
+)}
+
         </div>
       </Container>
     </Section>

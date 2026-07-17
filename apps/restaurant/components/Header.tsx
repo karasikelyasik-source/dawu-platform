@@ -1,8 +1,24 @@
 'use client';
 
 import AccountButton from './account/AccountButton';
+import { useAccount } from './account/AccountProvider';
+
+const RESTAURANT_TEMPORARILY_CLOSED = true;
 
 export default function Header() {
+  const {
+    customer,
+    loading,
+  } = useAccount();
+
+  const hasAdminAccess =
+    customer?.role === 'ADMIN' ||
+    customer?.role === 'OWNER';
+
+  const reservationAvailable =
+    !RESTAURANT_TEMPORARILY_CLOSED ||
+    hasAdminAccess;
+
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex h-24 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
@@ -49,12 +65,20 @@ export default function Header() {
         <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <AccountButton />
 
-          <a
-            href="#reservation"
-            className="rounded-full bg-white px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-black transition hover:scale-105 sm:px-7 sm:text-sm sm:tracking-[0.18em]"
-          >
-            Reserve
-          </a>
+          {!loading && reservationAvailable ? (
+            <a
+              href="#reservation"
+              className="rounded-full bg-white px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-black transition hover:scale-105 sm:px-7 sm:text-sm sm:tracking-[0.18em]"
+            >
+              {RESTAURANT_TEMPORARILY_CLOSED
+                ? 'Admin'
+                : 'Reserve'}
+            </a>
+          ) : (
+            <div className="cursor-not-allowed rounded-full border border-white/10 bg-white/10 px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-zinc-500 sm:px-7 sm:text-sm sm:tracking-[0.18em]">
+              Closed
+            </div>
+          )}
         </div>
       </div>
     </header>

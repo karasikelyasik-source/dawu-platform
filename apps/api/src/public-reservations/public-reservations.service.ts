@@ -1,11 +1,21 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+
+/**
+ * false — ресторан временно закрыт:
+ * бронирование доступно только ADMIN и OWNER.
+ *
+ * true — ресторан открыт:
+ * бронирование доступно всем.
+ */
+const RESTAURANT_OPEN = false;
 
 type CreatePublicReservationData = {
   name: string;
@@ -28,8 +38,30 @@ export class PublicReservationsService {
     data: CreatePublicReservationData,
     customerSessionToken?: string | null,
   ) {
+    const customerSession = customerSessionToken
+      ? await this.prisma.customerSession.findUnique({
+          where: {
+            token: customerSessionToken,
+          },
+          include: {
+            customer: true,
+          },
+        })
+      : null;
+
+    const hasAdminAccess =
+      customerSession?.customer.role === 'ADMIN' ||
+      customerSession?.customer.role === 'OWNER';
+
+    if (!RESTAURANT_OPEN && !hasAdminAccess) {
+      throw new ForbiddenException(
+        'Reservations are temporarily unavailable.',
+      );
+    }
+
     const name = data.name?.trim();
     const phone = data.phone?.trim();
+
     const email =
       data.email?.trim().toLowerCase() || null;
 
@@ -77,50 +109,43 @@ export class PublicReservationsService {
         2.5 * 60 * 60 * 1000,
     );
 
-    const qrToken = randomBytes(24).toString('hex');
-
-    const customerSession = customerSessionToken
-      ? await this.prisma.customerSession.findUnique({
-          where: {
-            token: customerSessionToken,
-          },
-          include: {
-            customer: true,
-          },
-        })
-      : null;
+    const qrToken =
+      randomBytes(24).toString('hex');
 
     const reservation =
-      await this.prisma.$transaction(async (tx) => {
-        const createdReservation =
-          await tx.reservation.create({
-            data: {
-              name,
-              phone,
-              email,
-              message:
-                data.message?.trim() || null,
-              guests,
-              startTime,
-              endTime,
-              status: 'CONFIRMED',
-              qrToken,
-            },
-          });
+      await this.prisma.$transaction(
+        async (tx) => {
+          const createdReservation =
+            await tx.reservation.create({
+              data: {
+                name,
+                phone,
+                email,
+                message:
+                  data.message?.trim() ||
+                  null,
+                guests,
+                startTime,
+                endTime,
+                status: 'CONFIRMED',
+                qrToken,
+              },
+            });
 
-        if (customerSession) {
-          await tx.customerReservation.create({
-            data: {
-              customerId:
-                customerSession.customerId,
-              reservationId:
-                createdReservation.id,
-            },
-          });
-        }
+          if (customerSession) {
+            await tx.customerReservation.create({
+              data: {
+                customerId:
+                  customerSession.customerId,
+                reservationId:
+                  createdReservation.id,
+              },
+            });
+          }
 
-        return createdReservation;
-      });
+          return createdReservation;
+        },
+      );
 
     const emailData = {
       name,
@@ -147,7 +172,8 @@ export class PublicReservationsService {
     return {
       success: true,
       reservation,
-      linkedToAccount: Boolean(customerSession),
+      linkedToAccount:
+        Boolean(customerSession),
     };
   }
 }

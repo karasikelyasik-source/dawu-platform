@@ -8,14 +8,6 @@ import { randomBytes } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-/**
- * false — ресторан временно закрыт:
- * бронирование доступно только ADMIN и OWNER.
- *
- * true — ресторан открыт:
- * бронирование доступно всем.
- */
-const RESTAURANT_OPEN = false;
 
 type CreatePublicReservationData = {
   name: string;
@@ -53,11 +45,6 @@ export class PublicReservationsService {
       customerSession?.customer.role === 'ADMIN' ||
       customerSession?.customer.role === 'OWNER';
 
-    if (!RESTAURANT_OPEN && !hasAdminAccess) {
-      throw new ForbiddenException(
-        'Reservations are temporarily unavailable.',
-      );
-    }
 
     const name = data.name?.trim();
     const phone = data.phone?.trim();

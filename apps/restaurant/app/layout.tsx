@@ -5,6 +5,7 @@ import {
 } from 'next/font/google';
 
 import { AccountProvider } from '../components/account/AccountProvider';
+import { RestaurantSettingsProvider } from '../components/restaurant-settings/RestaurantSettingsProvider';
 
 import './globals.css';
 
@@ -39,7 +40,9 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <AccountProvider>
-          {children}
+          <RestaurantSettingsProvider>
+            {children}
+          </RestaurantSettingsProvider>
         </AccountProvider>
       </body>
     </html>

@@ -2,27 +2,36 @@
 
 import AccountButton from './account/AccountButton';
 import { useAccount } from './account/AccountProvider';
-
-const RESTAURANT_TEMPORARILY_CLOSED = true;
+import { useRestaurantSettings } from './restaurant-settings/RestaurantSettingsProvider';
 
 export default function Header() {
   const {
     customer,
-    loading,
+    loading: accountLoading,
   } = useAccount();
+
+  const {
+    restaurantOpen,
+    loading: settingsLoading,
+  } = useRestaurantSettings();
 
   const hasAdminAccess =
     customer?.role === 'ADMIN' ||
     customer?.role === 'OWNER';
 
   const reservationAvailable =
-    !RESTAURANT_TEMPORARILY_CLOSED ||
-    hasAdminAccess;
+    restaurantOpen || hasAdminAccess;
+
+  const loading =
+    accountLoading || settingsLoading;
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex h-24 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
-        <a href="#" className="shrink-0">
+        <a
+          href="#"
+          className="shrink-0"
+        >
           <div className="text-2xl font-black tracking-[0.3em] sm:text-3xl sm:tracking-[0.35em]">
             DAWU
           </div>
@@ -70,13 +79,15 @@ export default function Header() {
               href="#reservation"
               className="rounded-full bg-white px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-black transition hover:scale-105 sm:px-7 sm:text-sm sm:tracking-[0.18em]"
             >
-              {RESTAURANT_TEMPORARILY_CLOSED
+              {!restaurantOpen
                 ? 'Admin'
                 : 'Reserve'}
             </a>
           ) : (
             <div className="cursor-not-allowed rounded-full border border-white/10 bg-white/10 px-5 py-4 text-xs font-black uppercase tracking-[0.16em] text-zinc-500 sm:px-7 sm:text-sm sm:tracking-[0.18em]">
-              Closed
+              {loading
+                ? 'Loading'
+                : 'Closed'}
             </div>
           )}
         </div>

@@ -6,6 +6,7 @@ import {
 } from 'react';
 
 import { useAccount } from './account/AccountProvider';
+import { useRestaurantSettings } from './restaurant-settings/RestaurantSettingsProvider';
 import Container from './ui/Container';
 import Section from './ui/Section';
 import SectionTitle from './ui/SectionTitle';
@@ -34,15 +35,18 @@ export default function Reservation() {
   const { customer, loading: accountLoading } =
     useAccount();
 
-    const RESTAURANT_TEMPORARILY_CLOSED = true;
+const {
+  restaurantOpen,
+  closedMessage,
+  loading: settingsLoading,
+} = useRestaurantSettings();
 
 const hasAdminAccess =
   customer?.role === 'ADMIN' ||
   customer?.role === 'OWNER';
 
 const reservationAvailable =
-  !RESTAURANT_TEMPORARILY_CLOSED ||
-  hasAdminAccess;
+  restaurantOpen || hasAdminAccess;
   
   const [form, setForm] =
     useState<ReservationForm>(EMPTY_FORM);
@@ -189,8 +193,10 @@ const reservationAvailable =
     }
   }
 
-  const formDisabled =
-    isSubmitting || accountLoading;
+const formDisabled =
+  isSubmitting ||
+  accountLoading ||
+  settingsLoading;
 
   return (
     <Section
@@ -358,7 +364,7 @@ const reservationAvailable =
               disabled={formDisabled}
               className="mt-6 flex min-h-14 w-full items-center justify-center rounded-full bg-amber-300 px-9 py-4 text-sm font-black uppercase tracking-[0.2em] text-black transition hover:-translate-y-0.5 hover:bg-amber-200 disabled:cursor-not-allowed disabled:translate-y-0 disabled:opacity-60"
             >
-              {accountLoading
+              {accountLoading || settingsLoading
                 ? 'Loading account...'
                 : isSubmitting
                   ? 'Creating reservation...'
@@ -380,16 +386,17 @@ const reservationAvailable =
       Reservations are unavailable
     </h3>
 
-    <p className="mt-4 text-zinc-400 leading-8">
-      DaWu Sushi Fusion is temporarily closed.
+<p className="mt-4 leading-8 text-zinc-400">
+  {closedMessage}
+</p>
 
-      Online reservations are currently unavailable.
-
-      We look forward to welcoming you again soon.
-    </p>
-  </div>
+{hasAdminAccess && (
+  <p className="mt-4 text-sm font-bold text-green-300">
+    Admin access enabled — reservations remain available for testing.
+  </p>
+  )}
+   </div>
 )}
-
         </div>
       </Container>
     </Section>

@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 
-import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * false — ресторан временно закрыт:
@@ -61,10 +61,8 @@ export class PublicReservationsService {
 
     const name = data.name?.trim();
     const phone = data.phone?.trim();
-
     const email =
       data.email?.trim().toLowerCase() || null;
-
     const guests = Number(data.guests);
 
     if (!name) {
@@ -79,10 +77,7 @@ export class PublicReservationsService {
       );
     }
 
-    if (
-      !Number.isInteger(guests) ||
-      guests < 1
-    ) {
+    if (!Number.isInteger(guests) || guests < 1) {
       throw new BadRequestException(
         'Guests must be at least 1',
       );
@@ -122,8 +117,7 @@ export class PublicReservationsService {
                 phone,
                 email,
                 message:
-                  data.message?.trim() ||
-                  null,
+                  data.message?.trim() || null,
                 guests,
                 startTime,
                 endTime,
@@ -172,8 +166,7 @@ export class PublicReservationsService {
     return {
       success: true,
       reservation,
-      linkedToAccount:
-        Boolean(customerSession),
+      linkedToAccount: Boolean(customerSession),
     };
   }
 }

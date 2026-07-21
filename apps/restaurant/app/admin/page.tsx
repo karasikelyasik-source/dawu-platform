@@ -192,6 +192,9 @@ export default function AdminPage() {
   const [successMessage, setSuccessMessage] =
     useState('');
 
+  const [mobileMenuOpen, setMobileMenuOpen] =
+    useState(false);
+
   const hasAdminAccess =
     customer?.role === 'OWNER' ||
     customer?.role === 'ADMIN';
@@ -538,6 +541,9 @@ export default function AdminPage() {
         <div className="min-w-0 flex-1 lg:pl-[280px]">
           <AdminMobileHeader
             customer={customer}
+            onMenuOpen={() =>
+              setMobileMenuOpen(true)
+            }
           />
 
           <div className="mx-auto max-w-[1600px] px-4 pb-16 pt-6 sm:px-6 lg:px-10 lg:pt-10">
@@ -680,6 +686,14 @@ export default function AdminPage() {
           </div>
         </div>
       </div>
+
+      <AdminMobileMenu
+        customer={customer}
+        open={mobileMenuOpen}
+        onClose={() =>
+          setMobileMenuOpen(false)
+        }
+      />
 
       {selectedCustomerId && (
         <CustomerDrawer
@@ -932,26 +946,277 @@ function AdminSidebar({
 
 function AdminMobileHeader({
   customer,
+  onMenuOpen,
 }: {
   customer: Customer;
+  onMenuOpen: () => void;
 }) {
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-white/[0.08] bg-[#090807]/95 px-4 backdrop-blur-xl lg:hidden">
-      <Link
-        href="/"
-        className="font-black tracking-[0.22em]"
-      >
-        DAWU
-      </Link>
-
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-label="Open administration menu"
+          onClick={onMenuOpen}
+          className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.035] text-white transition active:scale-95"
+        >
+          <MenuIcon />
+        </button>
+
+        <Link
+          href="/admin"
+          className="font-black tracking-[0.22em]"
+        >
+          DAWU
+        </Link>
+      </div>
+
+      <div className="flex items-center gap-2">
         <RoleBadge role={customer.role} />
+
         <Avatar
           name={customer.name}
           size="small"
         />
       </div>
     </header>
+  );
+}
+
+function AdminMobileMenu({
+  customer,
+  open,
+  onClose,
+}: {
+  customer: Customer;
+  open: boolean;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+
+    function handleEscape(
+      event: KeyboardEvent,
+    ) {
+      if (event.key === 'Escape') {
+        onClose();
+      }
+    }
+
+    window.addEventListener(
+      'keydown',
+      handleEscape,
+    );
+
+    return () => {
+      document.body.style.overflow =
+        previousOverflow;
+
+      window.removeEventListener(
+        'keydown',
+        handleEscape,
+      );
+    };
+  }, [open, onClose]);
+
+  return (
+    <div
+      className={[
+        'fixed inset-0 z-[90] lg:hidden',
+        open
+          ? 'pointer-events-auto'
+          : 'pointer-events-none',
+      ].join(' ')}
+      aria-hidden={!open}
+    >
+      <button
+        type="button"
+        aria-label="Close administration menu"
+        onClick={onClose}
+        className={[
+          'absolute inset-0 bg-black/75 backdrop-blur-sm transition-opacity duration-300',
+          open
+            ? 'opacity-100'
+            : 'opacity-0',
+        ].join(' ')}
+      />
+
+      <aside
+        className={[
+          'absolute inset-y-0 left-0 flex w-[88%] max-w-[340px] flex-col border-r border-white/10 bg-[#090807] p-5 shadow-[30px_0_100px_rgba(0,0,0,0.65)] transition-transform duration-300 ease-out',
+          open
+            ? 'translate-x-0'
+            : '-translate-x-full',
+        ].join(' ')}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <Link
+            href="/"
+            onClick={onClose}
+            className="min-w-0 flex-1 rounded-[24px] border border-white/10 bg-white/[0.025] p-5"
+          >
+            <p className="text-2xl font-black tracking-[0.28em]">
+              DAWU
+            </p>
+
+            <p className="mt-2 text-[10px] font-black uppercase tracking-[0.32em] text-amber-300">
+              Control Center
+            </p>
+          </Link>
+
+          <button
+            type="button"
+            aria-label="Close administration menu"
+            onClick={onClose}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 text-zinc-400 transition hover:bg-white/[0.06] hover:text-white"
+          >
+            <CloseIcon />
+          </button>
+        </div>
+
+        <nav className="mt-8 space-y-2">
+          <MobileAdminButton
+            title="Dashboard"
+          />
+
+          <MobileAdminLink
+            href="/admin"
+            title="Customers"
+            active
+            onClick={onClose}
+          />
+
+          <MobileAdminButton
+            title="Administrators"
+            badge="Owner"
+          />
+
+          <MobileAdminLink
+            href="/admin/restaurant-settings"
+            title="Restaurant Settings"
+            badge="Live"
+            onClick={onClose}
+          />
+
+          {customer.role === 'OWNER' && (
+            <MobileAdminLink
+              href="/admin/audit-log"
+              title="Audit Log"
+              badge="Owner"
+              onClick={onClose}
+            />
+          )}
+
+          <MobileAdminButton
+            title="Security"
+          />
+        </nav>
+
+        <div className="mt-auto rounded-[24px] border border-white/10 bg-white/[0.025] p-4">
+          <div className="flex items-center gap-3">
+            <Avatar
+              name={customer.name}
+              size="small"
+            />
+
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-black">
+                {customer.name}
+              </p>
+
+              <p className="mt-1 truncate text-xs text-zinc-600">
+                {customer.email}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <RoleBadge role={customer.role} />
+
+            <Link
+              href="/"
+              onClick={onClose}
+              className="text-xs font-black text-zinc-500 transition hover:text-white"
+            >
+              Exit
+            </Link>
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function MobileAdminLink({
+  href,
+  title,
+  active = false,
+  badge,
+  onClick,
+}: {
+  href: string;
+  title: string;
+  active?: boolean;
+  badge?: string;
+  onClick: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={[
+        'flex min-h-[52px] w-full items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-black transition',
+        active
+          ? 'bg-white text-black'
+          : 'text-zinc-400 hover:bg-white/[0.05] hover:text-white',
+      ].join(' ')}
+    >
+      <span>{title}</span>
+
+      {badge && (
+        <span
+          className={[
+            'text-[9px] uppercase tracking-[0.14em]',
+            active
+              ? 'text-black/45'
+              : 'text-zinc-700',
+          ].join(' ')}
+        >
+          {badge}
+        </span>
+      )}
+    </Link>
+  );
+}
+
+function MobileAdminButton({
+  title,
+  badge,
+}: {
+  title: string;
+  badge?: string;
+}) {
+  return (
+    <button
+      type="button"
+      disabled
+      className="flex min-h-[52px] w-full cursor-not-allowed items-center justify-between rounded-2xl px-4 py-3.5 text-left text-sm font-black text-zinc-700"
+    >
+      <span>{title}</span>
+
+      {badge && (
+        <span className="text-[9px] uppercase tracking-[0.14em] text-zinc-800">
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -2761,6 +3026,39 @@ function SessionIcon() {
         rx="2"
       />
       <path d="M8 22h8M12 18v4" />
+    </svg>
+  );
+}
+
+function MenuIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      className="h-5 w-5"
+    >
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </svg>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      className="h-5 w-5"
+    >
+      <path d="m6 6 12 12" />
+      <path d="M18 6 6 18" />
     </svg>
   );
 }

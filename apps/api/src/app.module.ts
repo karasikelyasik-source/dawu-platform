@@ -7,6 +7,7 @@ import { CustomerAuthModule } from './customer-auth/customer-auth.module';
 import { MailModule } from './mail/mail.module';
 import { MenuModule } from './menu/menu.module';
 import { OrdersModule } from './orders/orders.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { PublicReservationsModule } from './public-reservations/public-reservations.module';
 import { ReservationsModule } from './reservations/reservations.module';
 import { RestaurantSettingsModule } from './restaurant-settings/restaurant-settings.module';
@@ -31,6 +32,7 @@ import { TakeAwayModule } from './take-away/take-away.module';
     CustomerAuthModule,
     CustomerAdminModule,
     RestaurantSettingsModule,
+    PromoCodesModule,
   ],
 })
 export class AppModule {}

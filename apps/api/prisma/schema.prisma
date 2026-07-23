@@ -52,6 +52,19 @@ enum UserRole {
   STAFF
 }
 
+enum PromoDiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum PromoAppliesTo {
+  ALL
+  RESERVATION
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
 model Table {
   id     String      @id @default(cuid())
   number Int         @unique
@@ -96,8 +109,9 @@ model Reservation {
 
   customerLinks CustomerReservation[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  promoCodeUsages PromoCodeUsage[]
 }
 
 model TableSession {
@@ -437,8 +451,10 @@ model Customer {
 
   adminActions CustomerAdminAuditLog[] @relation("AdminActor")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  createdPromoCodes PromoCode[]      @relation("PromoCodeCreatedBy")
+  promoCodeUsages   PromoCodeUsage[]
 }
 
 model CustomerSession {
@@ -501,6 +517,7 @@ model CustomerAdminAuditLog {
   @@index([targetCustomerId])
   @@index([createdAt])
 }
+
 model RestaurantSettings {
   id Int @id @default(1)
 
@@ -509,4 +526,72 @@ model RestaurantSettings {
   closedMessage String @default("DaWu Sushi Fusion is temporarily closed. Reservations and online ordering are currently unavailable.")
 
   updatedAt DateTime @updatedAt
+}
+
+model PromoCode {
+  id String @id @default(cuid())
+
+  code        String  @unique
+  name        String
+  description String?
+
+  discountType  PromoDiscountType
+  discountValue Float
+
+  maximumDiscount    Float?
+  minimumOrderAmount Float?
+
+  appliesTo PromoAppliesTo @default(ALL)
+
+  startsAt  DateTime?
+  expiresAt DateTime?
+
+  usageLimit            Int?
+  usageLimitPerCustomer Int  @default(1)
+  usageCount            Int  @default(0)
+
+  firstOrderOnly Boolean   @default(false)
+  isActive       Boolean   @default(true)
+  deletedAt      DateTime?
+
+  createdById String
+  createdBy   Customer @relation("PromoCodeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  usages PromoCodeUsage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@index([createdById])
+}
+
+model PromoCodeUsage {
+  id String @id @default(cuid())
+
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  reservationId String?
+  reservation   Reservation? @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+
+  orderAmount    Float
+  discountAmount Float
+
+  email String?
+  phone String?
+
+  usedAt DateTime @default(now())
+
+  @@index([promoCodeId])
+  @@index([customerId])
+  @@index([reservationId])
+  @@index([email])
+  @@index([phone])
+  @@index([usedAt])
 }

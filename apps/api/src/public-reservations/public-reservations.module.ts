@@ -19,5 +19,8 @@ import { PublicReservationsService } from './public-reservations.service';
     PublicReservationsService,
     PrismaService,
   ],
+  exports: [
+    PublicReservationsService,
+  ],
 })
 export class PublicReservationsModule {}

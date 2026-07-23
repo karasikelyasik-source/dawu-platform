@@ -9,8 +9,8 @@ import { RestaurantSettingsService } from './restaurant-settings.service';
     RestaurantSettingsController,
   ],
   providers: [
-    PrismaService,
     RestaurantSettingsService,
+    PrismaService,
   ],
   exports: [
     RestaurantSettingsService,

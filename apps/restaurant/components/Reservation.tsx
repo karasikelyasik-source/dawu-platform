@@ -21,6 +21,24 @@ type ReservationForm = {
   message: string;
 };
 
+type AppliedPromoCode = {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
+  discountValue: number;
+  maximumDiscount: number | null;
+  minimumOrderAmount: number | null;
+  appliesTo:
+    | 'ALL'
+    | 'RESERVATION'
+    | 'DINE_IN'
+    | 'TAKEAWAY'
+    | 'DELIVERY';
+  expiresAt: string | null;
+};
+
 const EMPTY_FORM: ReservationForm = {
   name: '',
   phone: '',
@@ -60,6 +78,19 @@ const reservationAvailable =
   const [errorMessage, setErrorMessage] =
     useState('');
 
+
+  const [promoInput, setPromoInput] =
+    useState('');
+
+  const [appliedPromo, setAppliedPromo] =
+    useState<AppliedPromoCode | null>(null);
+
+  const [promoLoading, setPromoLoading] =
+    useState(false);
+
+  const [promoError, setPromoError] =
+    useState('');
+
   useEffect(() => {
     if (!customer) {
       return;
@@ -93,6 +124,112 @@ const reservationAvailable =
 
     setSuccessMessage('');
     setErrorMessage('');
+
+    if (
+      field === 'email' ||
+      field === 'phone'
+    ) {
+      setAppliedPromo(null);
+      setPromoError('');
+    }
+  }
+
+  async function applyPromoCode() {
+    const code = promoInput
+      .trim()
+      .toUpperCase();
+
+    if (!code) {
+      setPromoError(
+        'Enter a promo code first.',
+      );
+      setAppliedPromo(null);
+      return;
+    }
+
+    if (promoLoading || isSubmitting) {
+      return;
+    }
+
+    setPromoLoading(true);
+    setPromoError('');
+    setAppliedPromo(null);
+    setSuccessMessage('');
+    setErrorMessage('');
+
+    try {
+      const response = await fetch(
+        '/api/promo-codes/validate',
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            code,
+            orderAmount: 0,
+            appliesTo: 'RESERVATION',
+            email:
+              form.email.trim() ||
+              undefined,
+            phone:
+              form.phone.trim() ||
+              undefined,
+          }),
+        },
+      );
+
+      const responseBody = await response
+        .json()
+        .catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          typeof responseBody?.message ===
+          'string'
+            ? responseBody.message
+            : Array.isArray(
+                  responseBody?.message,
+                )
+              ? responseBody.message.join(
+                  ', ',
+                )
+              : 'Promo code could not be applied.';
+
+        throw new Error(message);
+      }
+
+      if (
+        !responseBody?.valid ||
+        !responseBody?.promoCode
+      ) {
+        throw new Error(
+          'Promo code could not be applied.',
+        );
+      }
+
+      setAppliedPromo(
+        responseBody.promoCode as AppliedPromoCode,
+      );
+      setPromoInput(
+        responseBody.promoCode.code,
+      );
+    } catch (error) {
+      setPromoError(
+        error instanceof Error
+          ? error.message
+          : 'Promo code could not be applied.',
+      );
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
+  function removePromoCode() {
+    setAppliedPromo(null);
+    setPromoInput('');
+    setPromoError('');
   }
 
   function resetFormAfterSuccess() {
@@ -105,6 +242,10 @@ const reservationAvailable =
       time: '',
       message: '',
     });
+
+    setPromoInput('');
+    setAppliedPromo(null);
+    setPromoError('');
   }
 
   async function submitReservation(
@@ -140,6 +281,9 @@ const reservationAvailable =
             time: form.time,
             message:
               form.message.trim() ||
+              undefined,
+            promoCode:
+              appliedPromo?.code ||
               undefined,
           }),
         },
@@ -347,6 +491,30 @@ const formDisabled =
               />
             </label>
 
+            <PromoCodeField
+              value={promoInput}
+              appliedPromo={appliedPromo}
+              loading={promoLoading}
+              disabled={formDisabled}
+              error={promoError}
+              onChange={(value) => {
+                setPromoInput(
+                  value
+                    .toUpperCase()
+                    .replace(
+                      /[^A-Z0-9_-]/g,
+                      '',
+                    ),
+                );
+                setAppliedPromo(null);
+                setPromoError('');
+              }}
+              onApply={() =>
+                void applyPromoCode()
+              }
+              onRemove={removePromoCode}
+            />
+
             {successMessage && (
               <div className="mt-5 rounded-2xl border border-green-700/50 bg-green-950/40 px-5 py-4 text-sm leading-6 text-green-200">
                 {successMessage}
@@ -400,6 +568,148 @@ const formDisabled =
         </div>
       </Container>
     </Section>
+  );
+}
+
+function PromoCodeField({
+  value,
+  appliedPromo,
+  loading,
+  disabled,
+  error,
+  onChange,
+  onApply,
+  onRemove,
+}: {
+  value: string;
+  appliedPromo: AppliedPromoCode | null;
+  loading: boolean;
+  disabled: boolean;
+  error: string;
+  onChange: (value: string) => void;
+  onApply: () => void;
+  onRemove: () => void;
+}) {
+  const discountLabel =
+    appliedPromo?.discountType ===
+    'PERCENTAGE'
+      ? `${appliedPromo.discountValue}% discount`
+      : appliedPromo
+        ? `${new Intl.NumberFormat('nl-NL', {
+            style: 'currency',
+            currency: 'EUR',
+          }).format(
+            appliedPromo.discountValue,
+          )} discount`
+        : '';
+
+  return (
+    <div className="mt-4">
+      <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+        Promo code
+      </span>
+
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <input
+          value={value}
+          onChange={(event) =>
+            onChange(event.target.value)
+          }
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Enter' &&
+              !appliedPromo
+            ) {
+              event.preventDefault();
+              onApply();
+            }
+          }}
+          placeholder="WELCOME10"
+          autoComplete="off"
+          disabled={
+            disabled ||
+            loading ||
+            Boolean(appliedPromo)
+          }
+          className={[
+            'min-h-14 min-w-0 flex-1 rounded-2xl border bg-black/50 px-5 py-4 font-black uppercase tracking-[0.12em] text-white outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-70',
+            appliedPromo
+              ? 'border-green-500/40'
+              : error
+                ? 'border-red-500/50'
+                : 'border-white/10 focus:border-amber-300',
+          ].join(' ')}
+        />
+
+        {appliedPromo ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            disabled={disabled}
+            className="min-h-14 rounded-2xl border border-white/10 px-6 text-sm font-black uppercase tracking-[0.14em] text-zinc-300 transition hover:border-red-400/30 hover:bg-red-500/[0.08] hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Remove
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onApply}
+            disabled={
+              disabled ||
+              loading ||
+              !value.trim()
+            }
+            className="min-h-14 rounded-2xl border border-amber-300/25 bg-amber-300/[0.08] px-7 text-sm font-black uppercase tracking-[0.14em] text-amber-200 transition hover:bg-amber-300/[0.14] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {loading ? 'Checking...' : 'Apply'}
+          </button>
+        )}
+      </div>
+
+      {appliedPromo && (
+        <div className="mt-3 rounded-2xl border border-green-500/25 bg-green-500/[0.08] px-5 py-4">
+          <div className="flex items-start gap-3">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-green-300 text-xs font-black text-green-950">
+              ✓
+            </span>
+
+            <div>
+              <p className="font-black text-green-200">
+                Promo code applied
+              </p>
+
+              <p className="mt-1 text-sm font-bold text-white">
+                {appliedPromo.name} ·{' '}
+                {discountLabel}
+              </p>
+
+              {appliedPromo.description && (
+                <p className="mt-1 text-sm leading-6 text-zinc-400">
+                  {appliedPromo.description}
+                </p>
+              )}
+
+              {appliedPromo.expiresAt && (
+                <p className="mt-2 text-xs text-zinc-600">
+                  Valid until{' '}
+                  {new Date(
+                    appliedPromo.expiresAt,
+                  ).toLocaleDateString(
+                    'nl-NL',
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {error && !appliedPromo && (
+        <div className="mt-3 rounded-2xl border border-red-500/25 bg-red-500/[0.08] px-5 py-4 text-sm leading-6 text-red-200">
+          {error}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -35,6 +35,7 @@ export class PublicReservationsController {
         date: body.date,
         time: body.time,
         message: body.message,
+        promoCode: body.promoCode,
       },
       customerSessionToken,
     );

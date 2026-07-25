@@ -525,6 +525,10 @@ model RestaurantSettings {
 
   closedMessage String @default("DaWu Sushi Fusion is temporarily closed. Reservations and online ordering are currently unavailable.")
 
+  reservationStartTime String @default("16:00")
+  reservationEndTime   String @default("22:00")
+  reservationInterval  Int    @default(15)
+
   updatedAt DateTime @updatedAt
 }
 

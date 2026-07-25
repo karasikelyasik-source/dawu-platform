@@ -13,12 +13,18 @@ import {
 type RestaurantSettings = {
   restaurantOpen: boolean;
   closedMessage: string;
+  reservationStartTime: string;
+  reservationEndTime: string;
+  reservationInterval: number;
   updatedAt?: string;
 };
 
 type RestaurantSettingsContextValue = {
   restaurantOpen: boolean;
   closedMessage: string;
+  reservationStartTime: string;
+  reservationEndTime: string;
+  reservationInterval: number;
   loading: boolean;
   error: string;
   refreshSettings: () => Promise<void>;
@@ -26,6 +32,15 @@ type RestaurantSettingsContextValue = {
 
 const DEFAULT_CLOSED_MESSAGE =
   'DaWu Sushi Fusion is temporarily closed. Reservations and online ordering are currently unavailable.';
+
+const DEFAULT_RESERVATION_START_TIME =
+  '16:00';
+
+const DEFAULT_RESERVATION_END_TIME =
+  '22:00';
+
+const DEFAULT_RESERVATION_INTERVAL =
+  15;
 
 const RestaurantSettingsContext =
   createContext<RestaurantSettingsContextValue | null>(
@@ -36,17 +51,46 @@ async function readResponseError(
   response: Response,
   fallback: string,
 ) {
-  const data = await response.json().catch(() => null);
+  const data = await response
+    .json()
+    .catch(() => null);
 
-  if (typeof data?.message === 'string') {
+  if (
+    typeof data?.message ===
+    'string'
+  ) {
     return data.message;
   }
 
-  if (Array.isArray(data?.message)) {
+  if (
+    Array.isArray(data?.message)
+  ) {
     return data.message.join(', ');
   }
 
   return fallback;
+}
+
+function isValidTime(
+  value: unknown,
+): value is string {
+  return (
+    typeof value === 'string' &&
+    /^([01]\d|2[0-3]):([0-5]\d)$/.test(
+      value,
+    )
+  );
+}
+
+function isValidInterval(
+  value: unknown,
+): value is number {
+  return (
+    typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= 5 &&
+    value <= 60
+  );
 }
 
 export function RestaurantSettingsProvider({
@@ -54,66 +98,136 @@ export function RestaurantSettingsProvider({
 }: {
   children: ReactNode;
 }) {
-  const [restaurantOpen, setRestaurantOpen] =
-    useState(false);
+  const [
+    restaurantOpen,
+    setRestaurantOpen,
+  ] = useState(false);
 
-  const [closedMessage, setClosedMessage] =
-    useState(DEFAULT_CLOSED_MESSAGE);
+  const [
+    closedMessage,
+    setClosedMessage,
+  ] = useState(
+    DEFAULT_CLOSED_MESSAGE,
+  );
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [
+    reservationStartTime,
+    setReservationStartTime,
+  ] = useState(
+    DEFAULT_RESERVATION_START_TIME,
+  );
 
-  const refreshSettings = useCallback(async () => {
-    setError('');
+  const [
+    reservationEndTime,
+    setReservationEndTime,
+  ] = useState(
+    DEFAULT_RESERVATION_END_TIME,
+  );
 
-    try {
-      const response = await fetch(
-        '/api/restaurant-settings/public',
-        {
-          method: 'GET',
-          credentials: 'include',
-          cache: 'no-store',
-        },
-      );
+  const [
+    reservationInterval,
+    setReservationInterval,
+  ] = useState(
+    DEFAULT_RESERVATION_INTERVAL,
+  );
 
-      if (!response.ok) {
-        throw new Error(
-          await readResponseError(
-            response,
-            'Could not load restaurant settings.',
-          ),
+  const [loading, setLoading] =
+    useState(true);
+
+  const [error, setError] =
+    useState('');
+
+  const refreshSettings =
+    useCallback(async () => {
+      setError('');
+
+      try {
+        const response = await fetch(
+          '/api/restaurant-settings/public',
+          {
+            method: 'GET',
+            credentials: 'include',
+            cache: 'no-store',
+          },
         );
-      }
 
-      const data =
-        (await response.json()) as RestaurantSettings;
+        if (!response.ok) {
+          throw new Error(
+            await readResponseError(
+              response,
+              'Could not load restaurant settings.',
+            ),
+          );
+        }
 
-      setRestaurantOpen(
-        data.restaurantOpen === true,
-      );
+        const data =
+          (await response.json()) as RestaurantSettings;
 
-      setClosedMessage(
-        data.closedMessage?.trim() ||
+        setRestaurantOpen(
+          data.restaurantOpen === true,
+        );
+
+        setClosedMessage(
+          data.closedMessage?.trim() ||
+            DEFAULT_CLOSED_MESSAGE,
+        );
+
+        setReservationStartTime(
+          isValidTime(
+            data.reservationStartTime,
+          )
+            ? data.reservationStartTime
+            : DEFAULT_RESERVATION_START_TIME,
+        );
+
+        setReservationEndTime(
+          isValidTime(
+            data.reservationEndTime,
+          )
+            ? data.reservationEndTime
+            : DEFAULT_RESERVATION_END_TIME,
+        );
+
+        setReservationInterval(
+          isValidInterval(
+            data.reservationInterval,
+          )
+            ? data.reservationInterval
+            : DEFAULT_RESERVATION_INTERVAL,
+        );
+      } catch (loadError) {
+        console.error(
+          'Restaurant settings load failed:',
+          loadError,
+        );
+
+        setRestaurantOpen(false);
+
+        setClosedMessage(
           DEFAULT_CLOSED_MESSAGE,
-      );
-    } catch (loadError) {
-      console.error(
-        'Restaurant settings load failed:',
-        loadError,
-      );
+        );
 
-      setRestaurantOpen(false);
-      setClosedMessage(DEFAULT_CLOSED_MESSAGE);
+        setReservationStartTime(
+          DEFAULT_RESERVATION_START_TIME,
+        );
 
-      setError(
-        loadError instanceof Error
-          ? loadError.message
-          : 'Could not load restaurant settings.',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+        setReservationEndTime(
+          DEFAULT_RESERVATION_END_TIME,
+        );
+
+        setReservationInterval(
+          DEFAULT_RESERVATION_INTERVAL,
+        );
+
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : 'Could not load restaurant settings.',
+        );
+      } finally {
+        setLoading(false);
+      }
+    }, []);
 
   useEffect(() => {
     void refreshSettings();
@@ -124,6 +238,9 @@ export function RestaurantSettingsProvider({
       () => ({
         restaurantOpen,
         closedMessage,
+        reservationStartTime,
+        reservationEndTime,
+        reservationInterval,
         loading,
         error,
         refreshSettings,
@@ -131,6 +248,9 @@ export function RestaurantSettingsProvider({
       [
         restaurantOpen,
         closedMessage,
+        reservationStartTime,
+        reservationEndTime,
+        reservationInterval,
         loading,
         error,
         refreshSettings,
@@ -138,7 +258,9 @@ export function RestaurantSettingsProvider({
     );
 
   return (
-    <RestaurantSettingsContext.Provider value={value}>
+    <RestaurantSettingsContext.Provider
+      value={value}
+    >
       {children}
     </RestaurantSettingsContext.Provider>
   );

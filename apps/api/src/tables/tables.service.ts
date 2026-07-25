@@ -615,24 +615,38 @@ async transferTable(fromTableId: string, toTableId: string) {
     return table;
   }
 
-  async markReady(id: string) {
-    const beforeTable = await this.prisma.table.findUnique({
-      where: { id },
+ async markReady(id: string) {
+  const beforeTable = await this.prisma.table.findUnique({
+    where: { id },
+  });
+
+  const beforeOrders = await this.prisma.tableOrderLog.findMany({
+    where: {
+      tableId: id,
+    },
+  });
+
+  await this.prisma.$transaction(async (tx) => {
+    // Закрываем ВСЕ активные сессии этого стола
+    await tx.tableSession.updateMany({
+      where: {
+        tableId: id,
+        status: 'ACTIVE',
+      },
+      data: {
+        status: 'FINISHED',
+      },
     });
 
-    const beforeOrders = await this.prisma.tableOrderLog.findMany({
+    // Удаляем все заказы
+    await tx.tableOrderLog.deleteMany({
       where: {
         tableId: id,
       },
     });
 
-await this.prisma.tableOrderLog.deleteMany({
-  where: {
-    tableId: id,
-  },
-});
-
-    const table = await this.prisma.table.update({
+    // Полностью очищаем стол
+    await tx.table.update({
       where: { id },
       data: {
         status: 'AVAILABLE',
@@ -641,22 +655,27 @@ await this.prisma.tableOrderLog.deleteMany({
         selectedPackages: Prisma.JsonNull,
       },
     });
+  });
 
-    await this.createLog({
-      tableId: id,
-      type: 'TABLE_READY',
-      message: 'Table reset and marked as ready',
-      beforeData: {
-        table: beforeTable,
-        orders: beforeOrders,
-      },
-      afterData: {
-        table,
-      },
-    });
+  const table = await this.prisma.table.findUnique({
+    where: { id },
+  });
 
-    return table;
-  }
+  await this.createLog({
+    tableId: id,
+    type: 'TABLE_READY',
+    message: 'Table reset and marked as ready',
+    beforeData: {
+      table: beforeTable,
+      orders: beforeOrders,
+    },
+    afterData: {
+      table,
+    },
+  });
+
+  return table;
+}
 
   async undoLog(id: string) {
     const log = await this.prisma.tableLog.findUnique({

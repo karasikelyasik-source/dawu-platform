@@ -34,7 +34,7 @@ export default function Header() {
   className="shrink-0"
 >
   <Image
-    src="/logo-white.svg"
+    src="/Logo-white.svg"
     alt="DaWu Sushi Fusion"
     width={190}
     height={60}

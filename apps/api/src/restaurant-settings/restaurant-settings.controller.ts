@@ -5,6 +5,7 @@ import {
   Patch,
   Req,
 } from '@nestjs/common';
+
 import type { Request } from 'express';
 
 import { RestaurantSettingsService } from './restaurant-settings.service';
@@ -30,6 +31,9 @@ export class RestaurantSettingsController {
     body: {
       restaurantOpen?: boolean;
       closedMessage?: string;
+      reservationStartTime?: string;
+      reservationEndTime?: string;
+      reservationInterval?: number;
     },
     @Req() request: Request,
   ) {
@@ -45,8 +49,18 @@ export class RestaurantSettingsController {
         {
           restaurantOpen:
             body.restaurantOpen,
+
           closedMessage:
             body.closedMessage,
+
+          reservationStartTime:
+            body.reservationStartTime,
+
+          reservationEndTime:
+            body.reservationEndTime,
+
+          reservationInterval:
+            body.reservationInterval,
         },
       );
   }

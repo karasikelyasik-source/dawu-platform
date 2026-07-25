@@ -3,6 +3,7 @@
 import AccountButton from './account/AccountButton';
 import { useAccount } from './account/AccountProvider';
 import { useRestaurantSettings } from './restaurant-settings/RestaurantSettingsProvider';
+import Image from 'next/image';
 
 export default function Header() {
   const {
@@ -28,18 +29,19 @@ export default function Header() {
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-black/70 backdrop-blur-xl">
       <div className="mx-auto flex h-24 max-w-7xl items-center justify-between gap-4 px-5 sm:px-6">
-        <a
-          href="#"
-          className="shrink-0"
-        >
-          <div className="text-2xl font-black tracking-[0.3em] sm:text-3xl sm:tracking-[0.35em]">
-            DAWU
-          </div>
-
-          <div className="mt-1 text-[10px] uppercase tracking-[0.3em] text-zinc-400 sm:text-xs sm:tracking-[0.35em]">
-            Sushi Fusion
-          </div>
-        </a>
+<a
+  href="#"
+  className="shrink-0"
+>
+  <Image
+    src="/logo-white.svg"
+    alt="DaWu Sushi Fusion"
+    width={190}
+    height={60}
+    priority
+    className="h-auto w-[150px] sm:w-[190px]"
+  />
+</a>
 
         <nav className="hidden items-center gap-8 text-sm font-bold uppercase tracking-[0.18em] text-zinc-300 md:flex">
           <a

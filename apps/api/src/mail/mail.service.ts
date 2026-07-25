@@ -126,13 +126,13 @@ export class MailService {
           <img
             src="cid:${this.logoCid}"
             alt="DaWu Sushi Fusion"
-            width="260"
+            width="180"
             style="
               display:block;
-              width:260px;
+              width:180px;
               max-width:100%;
               height:auto;
-              margin:0 auto;
+              margin:0 auto 18px;
               border:0;
               outline:none;
               text-decoration:none;
@@ -150,20 +150,19 @@ export class MailService {
           >
             DAWU
           </div>
-
-          <div
-            style="
-              margin-top:10px;
-              color:#d6b15f;
-              font-size:12px;
-              letter-spacing:4px;
-              text-transform:uppercase;
-            "
-          >
-            Sushi Fusion
-          </div>
         `
         }
+
+        <div
+          style="
+            color:#d6b15f;
+            font-size:12px;
+            letter-spacing:4px;
+            text-transform:uppercase;
+          "
+        >
+          Sushi Fusion
+        </div>
       </div>
 
       <div

@@ -33,14 +33,14 @@ export default function Header() {
   href="#"
   className="shrink-0"
 >
-  <Image
-    src="/Logo-white.svg"
-    alt="DaWu Sushi Fusion"
-    width={190}
-    height={60}
-    priority
-    className="h-auto w-[150px] sm:w-[190px]"
-  />
+<Image
+  src="/logo-email.png"
+  alt="DaWu Sushi Fusion"
+  width={190}
+  height={60}
+  priority
+  className="h-auto w-[150px] sm:w-[190px]"
+/>
 </a>
 
         <nav className="hidden items-center gap-8 text-sm font-bold uppercase tracking-[0.18em] text-zinc-300 md:flex">

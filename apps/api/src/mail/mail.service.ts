@@ -16,16 +16,33 @@ type ReservationEmailData = {
 @Injectable()
 export class MailService {
   private readonly transporter = nodemailer.createTransport({
-    service: 'gmail',
+    host: process.env.MAIL_HOST || 'smtp.strato.com',
+    port: Number(process.env.MAIL_PORT || 465),
+    secure: process.env.MAIL_SECURE !== 'false',
     auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
+      user: process.env.MAIL_USER,
+      pass: process.env.MAIL_PASSWORD,
     },
   });
 
+  private readonly fromName =
+    process.env.MAIL_FROM_NAME || 'DaWu Sushi Fusion';
+
+  private readonly fromEmail =
+    process.env.MAIL_FROM_EMAIL ||
+    process.env.MAIL_USER ||
+    '';
+
+  private getFromAddress() {
+    return `"${this.fromName}" <${this.fromEmail}>`;
+  }
+
   private layout(title: string, content: string) {
-    const logo = process.env.RESTAURANT_LOGO_URL || '';
-    const website = process.env.RESTAURANT_WEBSITE_URL || '#';
+    const logo =
+      process.env.RESTAURANT_LOGO_URL || '';
+
+    const website =
+      process.env.RESTAURANT_WEBSITE_URL || '#';
 
     return `
 <div style="margin:0;padding:0;background:#070504;font-family:Arial,Helvetica,sans-serif;color:#ffffff;">
@@ -53,17 +70,26 @@ export class MailService {
     <div style="margin-top:24px;text-align:center;color:#888;font-size:12px;line-height:1.7;">
       DaWu Sushi Fusion<br/>
       Beverwijk, Netherlands<br/>
-      <a href="${website}" style="color:#d6b15f;text-decoration:none;">
+
+      <a
+        href="${website}"
+        style="color:#d6b15f;text-decoration:none;"
+      >
         Visit website
       </a>
+
       <br/><br/>
+
       This email was sent automatically.
     </div>
   </div>
 </div>`;
   }
 
-  private row(label: string, value?: string | number) {
+  private row(
+    label: string,
+    value?: string | number,
+  ) {
     return `
 <div style="padding:14px 0;border-bottom:1px solid #272727;">
   <div style="color:#888;font-size:12px;text-transform:uppercase;letter-spacing:1.4px;margin-bottom:4px;">
@@ -76,7 +102,9 @@ export class MailService {
 </div>`;
   }
 
-  async sendNewReservationEmail(data: ReservationEmailData) {
+  async sendNewReservationEmail(
+    data: ReservationEmailData,
+  ) {
     const html = this.layout(
       'New reservation',
       `
@@ -91,9 +119,14 @@ ${this.row('Message', data.message || '-')}
     );
 
     await this.transporter.sendMail({
-      from: `"DaWu Reservations" <${process.env.GMAIL_USER}>`,
-      to: process.env.RESTAURANT_EMAIL,
-      replyTo: data.email || process.env.GMAIL_USER,
+      from: this.getFromAddress(),
+      to:
+        process.env.RESTAURANT_EMAIL ||
+        this.fromEmail,
+      replyTo:
+        data.email ||
+        process.env.RESTAURANT_EMAIL ||
+        this.fromEmail,
       subject: `New reservation - ${data.name}`,
       text: `
 New reservation
@@ -110,7 +143,9 @@ Message: ${data.message || '-'}
     });
   }
 
-  async sendCustomerReservationEmail(data: ReservationEmailData) {
+  async sendCustomerReservationEmail(
+    data: ReservationEmailData,
+  ) {
     if (!data.email) {
       return;
     }
@@ -120,12 +155,15 @@ Message: ${data.message || '-'}
     if (data.qrToken) {
       const qrPayload = `DAWU:${data.qrToken}`;
 
-      qrCodeBuffer = await QRCode.toBuffer(qrPayload, {
-        type: 'png',
-        width: 320,
-        margin: 2,
-        errorCorrectionLevel: 'H',
-      });
+      qrCodeBuffer = await QRCode.toBuffer(
+        qrPayload,
+        {
+          type: 'png',
+          width: 320,
+          margin: 2,
+          errorCorrectionLevel: 'H',
+        },
+      );
     }
 
     const html = this.layout(
@@ -133,6 +171,7 @@ Message: ${data.message || '-'}
       `
 <p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
   Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
+
   Thank you for your reservation at DaWu Sushi Fusion.
   Your reservation is confirmed.
 </p>
@@ -168,12 +207,13 @@ ${
     );
 
     await this.transporter.sendMail({
-      from: `"DaWu Sushi Fusion" <${process.env.GMAIL_USER}>`,
+      from: this.getFromAddress(),
       to: data.email,
       replyTo:
         process.env.RESTAURANT_EMAIL ||
-        process.env.GMAIL_USER,
-      subject: 'Your reservation at DaWu is confirmed',
+        this.fromEmail,
+      subject:
+        'Your reservation at DaWu is confirmed',
       text: `
 Dear ${data.name},
 
@@ -196,7 +236,8 @@ DaWu Sushi Fusion
       attachments: qrCodeBuffer
         ? [
             {
-              filename: 'dawu-reservation-qr.png',
+              filename:
+                'dawu-reservation-qr.png',
               content: qrCodeBuffer,
               cid: 'dawu-reservation-qr',
               contentType: 'image/png',
@@ -216,18 +257,26 @@ DaWu Sushi Fusion
       return;
     }
 
-    const date = data.startTime.toLocaleDateString('nl-NL');
+    const date =
+      data.startTime.toLocaleDateString(
+        'nl-NL',
+      );
 
-    const time = data.startTime.toLocaleTimeString('nl-NL', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    const time =
+      data.startTime.toLocaleTimeString(
+        'nl-NL',
+        {
+          hour: '2-digit',
+          minute: '2-digit',
+        },
+      );
 
     const html = this.layout(
       'Reservation cancelled',
       `
 <p style="margin:0 0 22px;color:#d0d0d0;font-size:16px;line-height:1.7;">
   Dear <strong style="color:#ffffff;">${data.name}</strong>,<br/>
+
   Your reservation at DaWu Sushi Fusion has been cancelled.
 </p>
 
@@ -242,12 +291,13 @@ ${this.row('Time', time)}
     );
 
     await this.transporter.sendMail({
-      from: `"DaWu Sushi Fusion" <${process.env.GMAIL_USER}>`,
+      from: this.getFromAddress(),
       to: data.email,
       replyTo:
         process.env.RESTAURANT_EMAIL ||
-        process.env.GMAIL_USER,
-      subject: 'Your reservation at DaWu has been cancelled',
+        this.fromEmail,
+      subject:
+        'Your reservation at DaWu has been cancelled',
       text: `
 Dear ${data.name},
 

@@ -13,6 +13,10 @@ import { useRestaurantSettings } from '../../../components/restaurant-settings/R
 const DEFAULT_CLOSED_MESSAGE =
   'DaWu Sushi Fusion is temporarily closed. Reservations and online ordering are currently unavailable.';
 
+const DEFAULT_START_TIME = '16:00';
+const DEFAULT_END_TIME = '22:00';
+const DEFAULT_INTERVAL = 15;
+
 export default function RestaurantSettingsPage() {
   const {
     customer,
@@ -22,19 +26,34 @@ export default function RestaurantSettingsPage() {
   const {
     restaurantOpen,
     closedMessage,
+    reservationStartTime,
+    reservationEndTime,
+    reservationInterval,
     loading: settingsLoading,
     error: settingsError,
     refreshSettings,
   } = useRestaurantSettings();
 
   const [open, setOpen] = useState(false);
+
   const [message, setMessage] = useState(
     DEFAULT_CLOSED_MESSAGE,
   );
 
+  const [startTime, setStartTime] =
+    useState(DEFAULT_START_TIME);
+
+  const [endTime, setEndTime] =
+    useState(DEFAULT_END_TIME);
+
+  const [interval, setInterval] =
+    useState(String(DEFAULT_INTERVAL));
+
   const [saving, setSaving] = useState(false);
+
   const [successMessage, setSuccessMessage] =
     useState('');
+
   const [errorMessage, setErrorMessage] =
     useState('');
 
@@ -48,12 +67,34 @@ export default function RestaurantSettingsPage() {
     }
 
     setOpen(restaurantOpen);
+
     setMessage(
-      closedMessage || DEFAULT_CLOSED_MESSAGE,
+      closedMessage ||
+        DEFAULT_CLOSED_MESSAGE,
+    );
+
+    setStartTime(
+      reservationStartTime ||
+        DEFAULT_START_TIME,
+    );
+
+    setEndTime(
+      reservationEndTime ||
+        DEFAULT_END_TIME,
+    );
+
+    setInterval(
+      String(
+        reservationInterval ||
+          DEFAULT_INTERVAL,
+      ),
     );
   }, [
     restaurantOpen,
     closedMessage,
+    reservationStartTime,
+    reservationEndTime,
+    reservationInterval,
     settingsLoading,
   ]);
 
@@ -67,10 +108,39 @@ export default function RestaurantSettingsPage() {
     }
 
     const cleanMessage = message.trim();
+    const numericInterval = Number(interval);
 
     if (!cleanMessage) {
       setErrorMessage(
         'Closed message is required.',
+      );
+      return;
+    }
+
+    if (!startTime || !endTime) {
+      setErrorMessage(
+        'Reservation start and end times are required.',
+      );
+      return;
+    }
+
+    if (
+      !Number.isInteger(numericInterval) ||
+      numericInterval < 5 ||
+      numericInterval > 60
+    ) {
+      setErrorMessage(
+        'Reservation interval must be between 5 and 60 minutes.',
+      );
+      return;
+    }
+
+    if (
+      timeToMinutes(startTime) >=
+      timeToMinutes(endTime)
+    ) {
+      setErrorMessage(
+        'Reservation end time must be later than the start time.',
       );
       return;
     }
@@ -91,6 +161,10 @@ export default function RestaurantSettingsPage() {
           body: JSON.stringify({
             restaurantOpen: open,
             closedMessage: cleanMessage,
+            reservationStartTime: startTime,
+            reservationEndTime: endTime,
+            reservationInterval:
+              numericInterval,
           }),
         },
       );
@@ -111,9 +185,7 @@ export default function RestaurantSettingsPage() {
       await refreshSettings();
 
       setSuccessMessage(
-        open
-          ? 'Restaurant opened successfully. Public reservations are now available.'
-          : 'Restaurant closed successfully. Public reservations are now disabled.',
+        'Restaurant and reservation schedule settings saved successfully.',
       );
     } catch (error) {
       console.error(
@@ -140,11 +212,30 @@ export default function RestaurantSettingsPage() {
   }
 
   const savedMessage =
-    closedMessage || DEFAULT_CLOSED_MESSAGE;
+    closedMessage ||
+    DEFAULT_CLOSED_MESSAGE;
+
+  const savedStartTime =
+    reservationStartTime ||
+    DEFAULT_START_TIME;
+
+  const savedEndTime =
+    reservationEndTime ||
+    DEFAULT_END_TIME;
+
+  const savedInterval =
+    String(
+      reservationInterval ||
+        DEFAULT_INTERVAL,
+    );
 
   const settingsChanged =
     open !== restaurantOpen ||
-    message.trim() !== savedMessage.trim();
+    message.trim() !==
+      savedMessage.trim() ||
+    startTime !== savedStartTime ||
+    endTime !== savedEndTime ||
+    interval !== savedInterval;
 
   return (
     <main className="min-h-screen bg-[#070504] px-4 py-8 text-white sm:px-6 lg:px-10">
@@ -167,7 +258,7 @@ export default function RestaurantSettingsPage() {
 
           <p className="mt-4 max-w-2xl leading-7 text-zinc-400">
             Open or close public reservations and
-            configure the message displayed to customers.
+            configure the reservation schedule.
           </p>
         </header>
 
@@ -268,6 +359,116 @@ export default function RestaurantSettingsPage() {
               </p>
             </div>
 
+            <div className="mt-7 rounded-[24px] border border-white/10 bg-black/20 p-5">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-amber-300">
+                Reservation schedule
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+                    Start time
+                  </span>
+
+                  <input
+                    required
+                    type="time"
+                    value={startTime}
+                    onChange={(event) => {
+                      setStartTime(
+                        event.target.value,
+                      );
+                      setSuccessMessage('');
+                      setErrorMessage('');
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white outline-none transition focus:border-amber-300"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+                    End time
+                  </span>
+
+                  <input
+                    required
+                    type="time"
+                    value={endTime}
+                    onChange={(event) => {
+                      setEndTime(
+                        event.target.value,
+                      );
+                      setSuccessMessage('');
+                      setErrorMessage('');
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white outline-none transition focus:border-amber-300"
+                  />
+                </label>
+              </div>
+
+              <label className="mt-4 block">
+                <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+                  Interval in minutes
+                </span>
+
+                <select
+                  value={interval}
+                  onChange={(event) => {
+                    setInterval(
+                      event.target.value,
+                    );
+                    setSuccessMessage('');
+                    setErrorMessage('');
+                  }}
+                  className="w-full rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white outline-none transition focus:border-amber-300"
+                >
+                  <option value="5">
+                    Every 5 minutes
+                  </option>
+
+                  <option value="10">
+                    Every 10 minutes
+                  </option>
+
+                  <option value="15">
+                    Every 15 minutes
+                  </option>
+
+                  <option value="20">
+                    Every 20 minutes
+                  </option>
+
+                  <option value="30">
+                    Every 30 minutes
+                  </option>
+
+                  <option value="45">
+                    Every 45 minutes
+                  </option>
+
+                  <option value="60">
+                    Every 60 minutes
+                  </option>
+                </select>
+              </label>
+
+              <div className="mt-4 rounded-2xl border border-amber-300/15 bg-amber-300/[0.05] px-5 py-4 text-sm leading-6 text-zinc-400">
+                Reservations will be available from{' '}
+                <strong className="text-white">
+                  {startTime}
+                </strong>{' '}
+                until{' '}
+                <strong className="text-white">
+                  {endTime}
+                </strong>{' '}
+                every{' '}
+                <strong className="text-white">
+                  {interval} minutes
+                </strong>
+                .
+              </div>
+            </div>
+
             <label className="mt-7 block">
               <span className="mb-3 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
                 Closed message
@@ -276,7 +477,9 @@ export default function RestaurantSettingsPage() {
               <textarea
                 value={message}
                 onChange={(event) => {
-                  setMessage(event.target.value);
+                  setMessage(
+                    event.target.value,
+                  );
                   setSuccessMessage('');
                   setErrorMessage('');
                 }}
@@ -316,10 +519,31 @@ export default function RestaurantSettingsPage() {
 
               <button
                 type="button"
-                disabled={saving || !settingsChanged}
+                disabled={
+                  saving ||
+                  !settingsChanged
+                }
                 onClick={() => {
-                  setOpen(restaurantOpen);
-                  setMessage(savedMessage);
+                  setOpen(
+                    restaurantOpen,
+                  );
+
+                  setMessage(
+                    savedMessage,
+                  );
+
+                  setStartTime(
+                    savedStartTime,
+                  );
+
+                  setEndTime(
+                    savedEndTime,
+                  );
+
+                  setInterval(
+                    savedInterval,
+                  );
+
                   setSuccessMessage('');
                   setErrorMessage('');
                 }}
@@ -363,7 +587,7 @@ export default function RestaurantSettingsPage() {
 
                 <p className="mt-4 text-sm leading-7 text-zinc-400">
                   {open
-                    ? 'Customers can reserve a table through the DaWu website.'
+                    ? `Customers can reserve from ${startTime} until ${endTime}, every ${interval} minutes.`
                     : message ||
                       DEFAULT_CLOSED_MESSAGE}
                 </p>
@@ -372,15 +596,36 @@ export default function RestaurantSettingsPage() {
 
             <section className="rounded-[30px] border border-white/10 bg-white/[0.03] p-6">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
-                Updated sections
+                Current reservation slots
               </p>
 
-              <div className="mt-5 space-y-3">
-                <Info title="Hero" />
-                <Info title="Header" />
-                <Info title="Reservation form" />
-                <Info title="Backend protection" />
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {generateTimeSlots(
+                  startTime,
+                  endTime,
+                  Number(interval),
+                )
+                  .slice(0, 12)
+                  .map((time) => (
+                    <div
+                      key={time}
+                      className="rounded-xl border border-white/[0.07] bg-black/20 px-3 py-2 text-center text-sm font-bold text-zinc-300"
+                    >
+                      {time}
+                    </div>
+                  ))}
               </div>
+
+              {generateTimeSlots(
+                startTime,
+                endTime,
+                Number(interval),
+              ).length > 12 && (
+                <p className="mt-4 text-xs text-zinc-600">
+                  More time slots will appear on the
+                  reservation form.
+                </p>
+              )}
             </section>
           </aside>
         </form>
@@ -389,18 +634,66 @@ export default function RestaurantSettingsPage() {
   );
 }
 
-function Info({
-  title,
-}: {
-  title: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/[0.07] bg-black/20 p-4">
-      <p className="font-black">
-        {title}
-      </p>
-    </div>
+function timeToMinutes(value: string) {
+  const [hours, minutes] =
+    value.split(':').map(Number);
+
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(totalMinutes: number) {
+  const hours = Math.floor(
+    totalMinutes / 60,
   );
+
+  const minutes = totalMinutes % 60;
+
+  return `${String(hours).padStart(
+    2,
+    '0',
+  )}:${String(minutes).padStart(
+    2,
+    '0',
+  )}`;
+}
+
+function generateTimeSlots(
+  startTime: string,
+  endTime: string,
+  interval: number,
+) {
+  if (
+    !startTime ||
+    !endTime ||
+    !Number.isInteger(interval) ||
+    interval < 1
+  ) {
+    return [];
+  }
+
+  const startMinutes =
+    timeToMinutes(startTime);
+
+  const endMinutes =
+    timeToMinutes(endTime);
+
+  if (startMinutes >= endMinutes) {
+    return [];
+  }
+
+  const slots: string[] = [];
+
+  for (
+    let current = startMinutes;
+    current <= endMinutes;
+    current += interval
+  ) {
+    slots.push(
+      minutesToTime(current),
+    );
+  }
+
+  return slots;
 }
 
 function Notice({
@@ -481,11 +774,15 @@ function getErrorMessage(
       }
     ).message;
 
-    if (typeof message === 'string') {
+    if (
+      typeof message === 'string'
+    ) {
       return message;
     }
 
-    if (Array.isArray(message)) {
+    if (
+      Array.isArray(message)
+    ) {
       return message.join(', ');
     }
   }

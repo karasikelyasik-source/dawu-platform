@@ -33,6 +33,18 @@ type AppliedPromoCode = {
   finalAmount: number;
 };
 
+const RESTAURANT_TIME_ZONE =
+  'Europe/Amsterdam';
+
+const DEFAULT_RESERVATION_START_TIME =
+  '16:00';
+
+const DEFAULT_RESERVATION_END_TIME =
+  '22:00';
+
+const DEFAULT_RESERVATION_INTERVAL =
+  15;
+
 @Injectable()
 export class PublicReservationsService {
   constructor(
@@ -125,9 +137,112 @@ export class PublicReservationsService {
       );
     }
 
-    const startTime = new Date(
-      `${data.date}T${data.time}:00`,
-    );
+    const reservationDate =
+      data.date.trim();
+
+    const reservationTime =
+      data.time.trim();
+
+    if (
+      !this.isValidDateString(
+        reservationDate,
+      )
+    ) {
+      throw new BadRequestException(
+        'Invalid reservation date',
+      );
+    }
+
+    if (
+      !this.isValidTimeString(
+        reservationTime,
+      )
+    ) {
+      throw new BadRequestException(
+        'Invalid reservation time',
+      );
+    }
+
+    const currentRestaurantTime =
+      this.getRestaurantDateTime();
+
+    if (
+      reservationDate <
+      currentRestaurantTime.date
+    ) {
+      throw new BadRequestException(
+        'Reservations cannot be created for a past date.',
+      );
+    }
+
+    const reservationStartTime =
+      restaurantSettings
+        ?.reservationStartTime ||
+      DEFAULT_RESERVATION_START_TIME;
+
+    const reservationEndTime =
+      restaurantSettings
+        ?.reservationEndTime ||
+      DEFAULT_RESERVATION_END_TIME;
+
+    const reservationInterval =
+      restaurantSettings
+        ?.reservationInterval ||
+      DEFAULT_RESERVATION_INTERVAL;
+
+    const selectedMinutes =
+      this.timeToMinutes(
+        reservationTime,
+      );
+
+    const openingMinutes =
+      this.timeToMinutes(
+        reservationStartTime,
+      );
+
+    const closingMinutes =
+      this.timeToMinutes(
+        reservationEndTime,
+      );
+
+    if (
+      selectedMinutes <
+        openingMinutes ||
+      selectedMinutes >
+        closingMinutes
+    ) {
+      throw new BadRequestException(
+        `Reservation time must be between ${reservationStartTime} and ${reservationEndTime}.`,
+      );
+    }
+
+    if (
+      (selectedMinutes -
+        openingMinutes) %
+        reservationInterval !==
+      0
+    ) {
+      throw new BadRequestException(
+        `Reservation time must use ${reservationInterval}-minute intervals.`,
+      );
+    }
+
+    if (
+      reservationDate ===
+        currentRestaurantTime.date &&
+      selectedMinutes <
+        currentRestaurantTime.minutes
+    ) {
+      throw new BadRequestException(
+        'Reservations cannot be created for a time that has already passed.',
+      );
+    }
+
+    const startTime =
+      this.createAmsterdamDate(
+        reservationDate,
+        reservationTime,
+      );
 
     if (
       Number.isNaN(startTime.getTime())
@@ -421,8 +536,8 @@ export class PublicReservationsService {
       phone,
       email: email || undefined,
       guests,
-      date: data.date,
-      time: data.time,
+      date: reservationDate,
+      time: reservationTime,
       message:
         message || undefined,
       qrToken,
@@ -450,4 +565,158 @@ export class PublicReservationsService {
         transactionResult.promoCode as AppliedPromoCode | null,
     };
   }
+
+  private isValidTimeString(
+    value: string,
+  ) {
+    return /^([01]\d|2[0-3]):([0-5]\d)$/.test(
+      value,
+    );
+  }
+
+  private isValidDateString(
+    value: string,
+  ) {
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(
+        value,
+      )
+    ) {
+      return false;
+    }
+
+    const [year, month, day] =
+      value.split('-').map(Number);
+
+    const date = new Date(
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+      ),
+    );
+
+    return (
+      date.getUTCFullYear() === year &&
+      date.getUTCMonth() ===
+        month - 1 &&
+      date.getUTCDate() === day
+    );
+  }
+
+  private timeToMinutes(
+    value: string,
+  ) {
+    const [hours, minutes] =
+      value.split(':').map(Number);
+
+    return hours * 60 + minutes;
+  }
+
+  private getRestaurantDateTime() {
+    const formatter =
+      new Intl.DateTimeFormat(
+        'en-GB',
+        {
+          timeZone:
+            RESTAURANT_TIME_ZONE,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+        },
+      );
+
+    const parts =
+      formatter.formatToParts(
+        new Date(),
+      );
+
+    const values =
+      Object.fromEntries(
+        parts.map((part) => [
+          part.type,
+          part.value,
+        ]),
+      );
+
+    return {
+      date: `${values.year}-${values.month}-${values.day}`,
+      minutes:
+        Number(values.hour) * 60 +
+        Number(values.minute),
+    };
+  }
+
+  private createAmsterdamDate(
+    dateValue: string,
+    timeValue: string,
+  ) {
+    const [year, month, day] =
+      dateValue.split('-').map(Number);
+
+    const [hours, minutes] =
+      timeValue.split(':').map(Number);
+
+    const initialUtc =
+      Date.UTC(
+        year,
+        month - 1,
+        day,
+        hours,
+        minutes,
+        0,
+        0,
+      );
+
+    const formatter =
+      new Intl.DateTimeFormat(
+        'en-GB',
+        {
+          timeZone:
+            RESTAURANT_TIME_ZONE,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hourCycle: 'h23',
+        },
+      );
+
+    const parts =
+      formatter.formatToParts(
+        new Date(initialUtc),
+      );
+
+    const values =
+      Object.fromEntries(
+        parts.map((part) => [
+          part.type,
+          part.value,
+        ]),
+      );
+
+    const representedAsUtc =
+      Date.UTC(
+        Number(values.year),
+        Number(values.month) - 1,
+        Number(values.day),
+        Number(values.hour),
+        Number(values.minute),
+        Number(values.second),
+      );
+
+    const timezoneOffset =
+      representedAsUtc -
+      initialUtc;
+
+    return new Date(
+      initialUtc - timezoneOffset,
+    );
+  }
+
 }

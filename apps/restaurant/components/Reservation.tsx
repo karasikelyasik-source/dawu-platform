@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useMemo,
   useState,
 } from 'react';
 
@@ -39,12 +40,110 @@ type AppliedPromoCode = {
   expiresAt: string | null;
 };
 
+
+const RESTAURANT_TIME_ZONE =
+  'Europe/Amsterdam';
+
+function getRestaurantDateTime() {
+  const formatter =
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: RESTAURANT_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+
+  const parts = formatter.formatToParts(
+    new Date(),
+  );
+
+  const values = Object.fromEntries(
+    parts.map((part) => [
+      part.type,
+      part.value,
+    ]),
+  );
+
+  return {
+    date: `${values.year}-${values.month}-${values.day}`,
+    minutes:
+      Number(values.hour) * 60 +
+      Number(values.minute),
+  };
+}
+
+function timeToMinutes(value: string) {
+  const [hours, minutes] =
+    value.split(':').map(Number);
+
+  return hours * 60 + minutes;
+}
+
+function minutesToTime(totalMinutes: number) {
+  const hours = Math.floor(
+    totalMinutes / 60,
+  );
+
+  const minutes = totalMinutes % 60;
+
+  return `${String(hours).padStart(
+    2,
+    '0',
+  )}:${String(minutes).padStart(
+    2,
+    '0',
+  )}`;
+}
+
+function generateTimeSlots(
+  startTime: string,
+  endTime: string,
+  interval: number,
+) {
+  const validTimePattern =
+    /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+  if (
+    !validTimePattern.test(startTime) ||
+    !validTimePattern.test(endTime) ||
+    !Number.isInteger(interval) ||
+    interval < 1
+  ) {
+    return [];
+  }
+
+  const startMinutes =
+    timeToMinutes(startTime);
+
+  const endMinutes =
+    timeToMinutes(endTime);
+
+  if (startMinutes > endMinutes) {
+    return [];
+  }
+
+  const slots: string[] = [];
+
+  for (
+    let current = startMinutes;
+    current <= endMinutes;
+    current += interval
+  ) {
+    slots.push(minutesToTime(current));
+  }
+
+  return slots;
+}
+
 const EMPTY_FORM: ReservationForm = {
   name: '',
   phone: '',
   email: '',
   guests: '2',
-  date: '',
+  date: getRestaurantDateTime().date,
   time: '',
   message: '',
 };
@@ -56,6 +155,9 @@ export default function Reservation() {
 const {
   restaurantOpen,
   closedMessage,
+  reservationStartTime,
+  reservationEndTime,
+  reservationInterval,
   loading: settingsLoading,
 } = useRestaurantSettings();
 
@@ -91,6 +193,60 @@ const reservationAvailable =
   const [promoError, setPromoError] =
     useState('');
 
+  const [restaurantNow, setRestaurantNow] =
+    useState(() =>
+      getRestaurantDateTime(),
+    );
+
+  useEffect(() => {
+    const updateRestaurantNow = () => {
+      setRestaurantNow(
+        getRestaurantDateTime(),
+      );
+    };
+
+    updateRestaurantNow();
+
+    const timer = window.setInterval(
+      updateRestaurantNow,
+      30_000,
+    );
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const todayDate =
+    restaurantNow.date;
+
+  const availableTimeSlots =
+    useMemo(() => {
+      const allSlots =
+        generateTimeSlots(
+          reservationStartTime,
+          reservationEndTime,
+          reservationInterval,
+        );
+
+      if (form.date !== todayDate) {
+        return allSlots;
+      }
+
+      return allSlots.filter(
+        (slot) =>
+          timeToMinutes(slot) >=
+          restaurantNow.minutes,
+      );
+    }, [
+      form.date,
+      todayDate,
+      restaurantNow.minutes,
+      reservationStartTime,
+      reservationEndTime,
+      reservationInterval,
+    ]);
+
   useEffect(() => {
     if (!customer) {
       return;
@@ -112,6 +268,38 @@ const reservationAvailable =
         '',
     }));
   }, [customer]);
+
+  useEffect(() => {
+    if (
+      form.date &&
+      form.date < todayDate
+    ) {
+      setForm((current) => ({
+        ...current,
+        date: todayDate,
+        time: '',
+      }));
+
+      return;
+    }
+
+    if (
+      form.time &&
+      !availableTimeSlots.includes(
+        form.time,
+      )
+    ) {
+      setForm((current) => ({
+        ...current,
+        time: '',
+      }));
+    }
+  }, [
+    form.date,
+    form.time,
+    todayDate,
+    availableTimeSlots,
+  ]);
 
   function updateField(
     field: keyof ReservationForm,
@@ -238,7 +426,7 @@ const reservationAvailable =
       phone: customer?.phone || '',
       email: customer?.email || '',
       guests: '2',
-      date: '',
+      date: getRestaurantDateTime().date,
       time: '',
       message: '',
     });
@@ -252,6 +440,26 @@ const reservationAvailable =
     event: React.FormEvent<HTMLFormElement>,
   ) {
     event.preventDefault();
+
+    if (form.date < todayDate) {
+      setSuccessMessage('');
+      setErrorMessage(
+        'Past reservation dates are not available.',
+      );
+      return;
+    }
+
+    if (
+      !availableTimeSlots.includes(
+        form.time,
+      )
+    ) {
+      setSuccessMessage('');
+      setErrorMessage(
+        'Please select an available reservation time.',
+      );
+      return;
+    }
 
     if (isSubmitting) {
       return;
@@ -447,28 +655,59 @@ const formDisabled =
                 value={form.date}
                 placeholder=""
                 type="date"
+                min={todayDate}
                 disabled={formDisabled}
-                onChange={(value) =>
-                  updateField(
-                    'date',
-                    value,
-                  )
-                }
+                onChange={(value) => {
+                  setForm((current) => ({
+                    ...current,
+                    date: value,
+                    time: '',
+                  }));
+
+                  setSuccessMessage('');
+                  setErrorMessage('');
+                }}
               />
 
-              <Field
-                label="Time"
-                value={form.time}
-                placeholder=""
-                type="time"
-                disabled={formDisabled}
-                onChange={(value) =>
-                  updateField(
-                    'time',
-                    value,
-                  )
-                }
-              />
+              <label className="block">
+                <span className="mb-2 block text-xs font-black uppercase tracking-[0.18em] text-zinc-500">
+                  Time
+                </span>
+
+                <select
+                  required
+                  value={form.time}
+                  disabled={
+                    formDisabled ||
+                    !form.date ||
+                    availableTimeSlots.length === 0
+                  }
+                  onChange={(event) =>
+                    updateField(
+                      'time',
+                      event.target.value,
+                    )
+                  }
+                  className="w-full rounded-2xl border border-white/10 bg-black/50 px-5 py-4 text-white outline-none transition focus:border-amber-300 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <option value="">
+                    {availableTimeSlots.length > 0
+                      ? 'Select a time'
+                      : 'No available times'}
+                  </option>
+
+                  {availableTimeSlots.map(
+                    (time) => (
+                      <option
+                        key={time}
+                        value={time}
+                      >
+                        {time}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </label>
             </div>
 
             <label className="mt-4 block">

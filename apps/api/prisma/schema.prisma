@@ -65,6 +65,37 @@ enum PromoAppliesTo {
   DELIVERY
 }
 
+enum MarketingCampaignStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  SENDING
+  SENT
+  PAUSED
+  CANCELLED
+  FAILED
+  ARCHIVED
+}
+
+enum MarketingAudienceType {
+  ALL_CUSTOMERS
+  ACTIVE_CUSTOMERS
+  MANUAL
+}
+
+enum MarketingRecipientStatus {
+  PENDING
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  FAILED
+  SKIPPED
+  UNSUBSCRIBED
+}
+
 model Table {
   id     String      @id @default(cuid())
   number Int         @unique
@@ -451,10 +482,12 @@ model Customer {
 
   adminActions CustomerAdminAuditLog[] @relation("AdminActor")
 
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  createdPromoCodes PromoCode[]      @relation("PromoCodeCreatedBy")
-  promoCodeUsages   PromoCodeUsage[]
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  createdPromoCodes         PromoCode[]          @relation("PromoCodeCreatedBy")
+  promoCodeUsages           PromoCodeUsage[]
+  marketingCampaignsCreated MarketingCampaign[]  @relation("MarketingCampaignCreatedBy")
+  marketingRecipients       MarketingRecipient[]
 }
 
 model CustomerSession {
@@ -561,7 +594,8 @@ model PromoCode {
   createdById String
   createdBy   Customer @relation("PromoCodeCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
 
-  usages PromoCodeUsage[]
+  usages             PromoCodeUsage[]
+  marketingCampaigns MarketingCampaign[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -598,4 +632,92 @@ model PromoCodeUsage {
   @@index([email])
   @@index([phone])
   @@index([usedAt])
+}
+
+model MarketingCampaign {
+  id String @id @default(cuid())
+
+  name        String
+  subject     String
+  previewText String?
+
+  title      String?
+  subtitle   String?
+  body       String
+  buttonText String?
+  buttonUrl  String?
+  imageUrl   String?
+
+  audienceType MarketingAudienceType   @default(ALL_CUSTOMERS)
+  status       MarketingCampaignStatus @default(DRAFT)
+
+  senderName  String?
+  senderEmail String?
+
+  promoCodeId String?
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+
+  scheduledAt DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  totalRecipients Int @default(0)
+  queuedCount     Int @default(0)
+  sentCount       Int @default(0)
+  deliveredCount  Int @default(0)
+  openedCount     Int @default(0)
+  clickedCount    Int @default(0)
+  failedCount     Int @default(0)
+  skippedCount    Int @default(0)
+
+  createdById String?
+  createdBy   Customer? @relation("MarketingCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  recipients MarketingRecipient[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([createdById])
+  @@index([promoCodeId])
+  @@index([createdAt])
+}
+
+model MarketingRecipient {
+  id String @id @default(cuid())
+
+  campaignId String
+  campaign   MarketingCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  name  String?
+  email String
+
+  status MarketingRecipientStatus @default(PENDING)
+
+  queuedAt    DateTime?
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  failedAt    DateTime?
+
+  attempts     Int     @default(0)
+  errorMessage String?
+
+  trackingToken String @unique @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([campaignId, email])
+  @@index([campaignId, status])
+  @@index([customerId])
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
 }

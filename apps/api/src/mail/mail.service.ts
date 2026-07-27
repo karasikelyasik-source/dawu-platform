@@ -545,4 +545,154 @@ DaWu Sushi Fusion
       attachments: this.getBaseAttachments(),
     });
   }
+  async sendCustomerWelcomeEmail(data: {
+  name: string;
+  email: string;
+}) {
+  const website =
+    process.env.RESTAURANT_WEBSITE_URL ||
+    'https://dawubeverwijk.nl';
+
+  const safeName =
+    data.name?.trim() || 'Guest';
+
+  const html = this.layout(
+    'Welcome to DaWu',
+    `
+<p
+  style="
+    margin:0 0 22px;
+    color:#d0d0d0;
+    font-size:16px;
+    line-height:1.7;
+  "
+>
+  Dear
+  <strong style="color:#ffffff;">
+    ${safeName}
+  </strong>,
+  <br /><br />
+
+  Thank you for creating your DaWu Sushi Fusion account.
+</p>
+
+<div
+  style="
+    margin:24px 0;
+    padding:22px;
+    background:#090909;
+    border:1px solid #2a2a2a;
+    border-radius:18px;
+  "
+>
+  <div
+    style="
+      color:#d6b15f;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      margin-bottom:14px;
+    "
+  >
+    Account benefits
+  </div>
+
+  <div
+    style="
+      color:#ffffff;
+      font-size:15px;
+      line-height:2;
+    "
+  >
+    ✓ Exclusive discounts<br />
+    ✓ Special promo codes<br />
+    ✓ Member-only offers<br />
+    ✓ Early access to reservations<br />
+    ✓ Notification when DaWu opens
+  </div>
+</div>
+
+<p
+  style="
+    margin:0 0 24px;
+    color:#d0d0d0;
+    font-size:16px;
+    line-height:1.7;
+  "
+>
+  DaWu Sushi Fusion is currently preparing to welcome you.
+  We will send you an email as soon as reservations and online
+  ordering become available.
+</p>
+
+<div style="text-align:center;margin-top:28px;">
+  <a
+    href="${website}"
+    style="
+      display:inline-block;
+      padding:15px 28px;
+      background:#d6b15f;
+      color:#090909;
+      font-size:15px;
+      font-weight:700;
+      text-decoration:none;
+      border-radius:14px;
+    "
+  >
+    Visit DaWu Sushi Fusion
+  </a>
+</div>
+
+<p
+  style="
+    margin:28px 0 0;
+    color:#888888;
+    font-size:13px;
+    line-height:1.7;
+  "
+>
+  We look forward to welcoming you soon.
+  <br />
+  — DaWu Sushi Fusion Team
+</p>
+    `,
+  );
+
+  await this.transporter.sendMail({
+    from: this.getFromAddress(),
+    to: data.email,
+
+    replyTo:
+      process.env.RESTAURANT_EMAIL ||
+      this.fromEmail,
+
+    subject:
+      'Welcome to DaWu Sushi Fusion 🍣',
+
+    text: `
+Dear ${safeName},
+
+Thank you for creating your DaWu Sushi Fusion account.
+
+As a registered member, you will receive:
+
+- Exclusive discounts
+- Special promo codes
+- Member-only offers
+- Early access to reservations
+- A notification when DaWu Sushi Fusion opens
+
+We will email you as soon as reservations and online ordering become available.
+
+Visit: ${website}
+
+Kind regards,
+DaWu Sushi Fusion
+    `,
+
+    html,
+    attachments: this.getBaseAttachments(),
+  });
+}
 }

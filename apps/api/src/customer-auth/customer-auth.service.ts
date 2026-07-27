@@ -2,12 +2,15 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+
 import { randomBytes } from 'crypto';
 import * as bcrypt from 'bcrypt';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { MailService } from '../mail/mail.service';
 
 type SessionInfo = {
   ip?: string | null;
@@ -16,7 +19,11 @@ type SessionInfo = {
 
 @Injectable()
 export class CustomerAuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CustomerAuthService.name);
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly mailService: MailService,
+) {}
 
   async register(
     data: {
@@ -101,6 +108,20 @@ export class CustomerAuthService {
 
         return createdCustomer;
       });
+
+try {
+  await this.mailService.sendCustomerWelcomeEmail({
+    name: customer.name,
+    email: customer.email,
+  });
+} catch (error) {
+  this.logger.error(
+    `Failed to send welcome email to ${customer.email}`,
+    error instanceof Error
+      ? error.stack
+      : String(error),
+  );
+}
 
     return {
       customer: this.toPublicCustomer(customer),

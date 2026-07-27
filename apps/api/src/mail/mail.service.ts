@@ -166,85 +166,34 @@ export class MailService {
       </div>
 
       <div
-  style="
-    margin:24px 0;
-    padding:22px;
-    background:#090909;
-    border:1px solid #2a2a2a;
-    border-radius:18px;
-  "
->
-  <div
-    style="
-      color:#d6b15f;
-      font-size:12px;
-      font-weight:700;
-      letter-spacing:2px;
-      text-transform:uppercase;
-      margin-bottom:14px;
-    "
-  >
-    Member Benefits
-  </div>
+        style="
+          background:#111111;
+          border:1px solid #272727;
+          border-radius:22px;
+          padding:28px;
+        "
+      >
+        ${content}
+      </div>
 
-  <div
-    style="
-      color:#ffffff;
-      font-size:15px;
-      line-height:2;
-    "
-  >
-    ✓ Exclusive discounts<br />
-    ✓ Special promo codes<br />
-    ✓ Member-only offers<br />
-    ✓ Early access to reservations<br />
-    ✓ Email notification when DaWu opens
-  </div>
-</div>
-
-<div
-  style="
-    margin:28px 0;
-    padding:24px;
-    background:#d6b15f;
-    color:#111111;
-    border-radius:18px;
-    text-align:center;
-  "
->
-  <div
-    style="
-      font-size:12px;
-      letter-spacing:2px;
-      text-transform:uppercase;
-      font-weight:bold;
-    "
-  >
-    Welcome Gift
-  </div>
-
-  <div
-    style="
-      margin-top:12px;
-      font-size:34px;
-      font-weight:900;
-      letter-spacing:3px;
-    "
-  >
-    DAWUOPEN10
-  </div>
-
-  <div
-    style="
-      margin-top:16px;
-      font-size:16px;
-      line-height:1.7;
-    "
-  >
-    Use this promo code when DaWu Sushi Fusion officially opens
-    and receive <strong>10% OFF</strong> your first order or reservation.
-  </div>
-</div>
+      <div
+        style="
+          margin-top:24px;
+          text-align:center;
+          color:#777777;
+          font-size:12px;
+          line-height:1.7;
+        "
+      >
+        © DaWu Sushi Fusion
+        <br />
+        <a
+          href="${website}"
+          style="color:#d6b15f;text-decoration:none;"
+        >
+          ${website}
+        </a>
+      </div>
   </div>
 </body>
 </html>`;
@@ -692,6 +641,8 @@ We'll notify you immediately by email when reservations and online ordering are 
     `,
   );
 
+
+  
   await this.transporter.sendMail({
     from: this.getFromAddress(),
     to: data.email,
@@ -728,4 +679,128 @@ DaWu Sushi Fusion
     attachments: this.getBaseAttachments(),
   });
 }
+
+
+  async sendMarketingCampaignEmail(data: {
+    name: string;
+    email: string;
+    subject: string;
+    previewText?: string | null;
+    title?: string | null;
+    subtitle?: string | null;
+    body: string;
+    buttonText?: string | null;
+    buttonUrl?: string | null;
+    imageUrl?: string | null;
+    promoCode?: {
+      code: string;
+      discountType: string;
+      discountValue: number;
+    } | null;
+  }): Promise<void> {
+    const website =
+      process.env.RESTAURANT_WEBSITE_URL ||
+      'https://dawubeverwijk.nl';
+
+    const safeName = data.name?.trim() || 'Guest';
+
+    const formattedBody = data.body
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map(
+        (line) => `
+<p style="margin:0 0 14px;color:#d8d8d8;font-size:15px;line-height:1.8;">
+  ${line}
+</p>`,
+      )
+      .join('');
+
+    const promoBlock = data.promoCode
+      ? `
+<div style="margin:28px 0;padding:24px;border-radius:18px;text-align:center;background:#d6b15f;color:#111111;">
+  <div style="font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;">
+    Exclusive promo code
+  </div>
+  <div style="margin-top:12px;font-size:32px;font-weight:900;letter-spacing:3px;">
+    ${data.promoCode.code}
+  </div>
+  <div style="margin-top:12px;font-size:16px;line-height:1.6;">
+    ${
+      data.promoCode.discountType === 'PERCENTAGE'
+        ? `${data.promoCode.discountValue}% discount`
+        : `€${data.promoCode.discountValue} discount`
+    }
+  </div>
+</div>`
+      : '';
+
+    const imageBlock = data.imageUrl
+      ? `
+<div style="margin:0 0 28px;">
+  <img src="${data.imageUrl}" alt="" style="display:block;width:100%;max-width:100%;height:auto;border-radius:18px;border:0;" />
+</div>`
+      : '';
+
+    const buttonUrl = data.buttonUrl || website;
+
+    const buttonBlock = data.buttonText
+      ? `
+<div style="margin:30px 0;text-align:center;">
+  <a href="${buttonUrl}" style="display:inline-block;padding:15px 28px;border-radius:999px;background:#d6b15f;color:#111111;font-size:14px;font-weight:800;text-decoration:none;">
+    ${data.buttonText}
+  </a>
+</div>`
+      : '';
+
+    const html = this.layout(
+      data.subject,
+      `
+${
+  data.previewText
+    ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${data.previewText}</div>`
+    : ''
+}
+${imageBlock}
+<div style="color:#d6b15f;font-size:12px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;">
+  DaWu Sushi Fusion
+</div>
+<h1 style="margin:0 0 14px;color:#ffffff;font-size:30px;line-height:1.25;">
+  ${data.title || `Hello, ${safeName}`}
+</h1>
+${
+  data.subtitle
+    ? `<p style="margin:0 0 24px;color:#b8b8b8;font-size:17px;line-height:1.7;">${data.subtitle}</p>`
+    : ''
+}
+${formattedBody}
+${promoBlock}
+${buttonBlock}
+      `,
+    );
+
+    await this.transporter.sendMail({
+      from: this.getFromAddress(),
+      to: data.email,
+      replyTo:
+        process.env.RESTAURANT_EMAIL ||
+        this.fromEmail,
+      subject: data.subject,
+      text: `
+Hello ${safeName},
+
+${data.body}
+
+${data.promoCode ? `Promo code: ${data.promoCode.code}` : ''}
+
+${data.buttonText ? `${data.buttonText}: ${buttonUrl}` : ''}
+
+Kind regards,
+DaWu Sushi Fusion
+      `,
+      html,
+      attachments: this.getBaseAttachments(),
+    });
+  }
+
 }

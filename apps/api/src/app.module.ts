@@ -15,6 +15,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { SystemLogsModule } from './system-logs/system-logs.module';
 import { TablesModule } from './tables/tables.module';
 import { TakeAwayModule } from './take-away/take-away.module';
+import { MarketingModule } from './marketing/marketing.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TakeAwayModule } from './take-away/take-away.module';
     CustomerAdminModule,
     RestaurantSettingsModule,
     PromoCodesModule,
+    MarketingModule,
   ],
 })
 export class AppModule {}

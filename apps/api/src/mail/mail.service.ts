@@ -166,54 +166,85 @@ export class MailService {
       </div>
 
       <div
-        style="
-          background:#111111;
-          border:1px solid #2a2a2a;
-          border-radius:26px;
-          padding:30px;
-        "
-      >
-        <h1
-          style="
-            margin:0 0 22px;
-            font-size:28px;
-            line-height:1.2;
-            color:#ffffff;
-          "
-        >
-          ${title}
-        </h1>
+  style="
+    margin:24px 0;
+    padding:22px;
+    background:#090909;
+    border:1px solid #2a2a2a;
+    border-radius:18px;
+  "
+>
+  <div
+    style="
+      color:#d6b15f;
+      font-size:12px;
+      font-weight:700;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      margin-bottom:14px;
+    "
+  >
+    Member Benefits
+  </div>
 
-        ${content}
-      </div>
+  <div
+    style="
+      color:#ffffff;
+      font-size:15px;
+      line-height:2;
+    "
+  >
+    ✓ Exclusive discounts<br />
+    ✓ Special promo codes<br />
+    ✓ Member-only offers<br />
+    ✓ Early access to reservations<br />
+    ✓ Email notification when DaWu opens
+  </div>
+</div>
 
-      <div
-        style="
-          margin-top:24px;
-          text-align:center;
-          color:#888888;
-          font-size:12px;
-          line-height:1.7;
-        "
-      >
-        DaWu Sushi Fusion<br />
-        Beverwijk, Netherlands<br />
+<div
+  style="
+    margin:28px 0;
+    padding:24px;
+    background:#d6b15f;
+    color:#111111;
+    border-radius:18px;
+    text-align:center;
+  "
+>
+  <div
+    style="
+      font-size:12px;
+      letter-spacing:2px;
+      text-transform:uppercase;
+      font-weight:bold;
+    "
+  >
+    Welcome Gift
+  </div>
 
-        <a
-          href="${website}"
-          style="
-            color:#d6b15f;
-            text-decoration:none;
-          "
-        >
-          Visit website
-        </a>
+  <div
+    style="
+      margin-top:12px;
+      font-size:34px;
+      font-weight:900;
+      letter-spacing:3px;
+    "
+  >
+    DAWUOPEN10
+  </div>
 
-        <br /><br />
-
-        This email was sent automatically.
-      </div>
-    </div>
+  <div
+    style="
+      margin-top:16px;
+      font-size:16px;
+      line-height:1.7;
+    "
+  >
+    Use this promo code when DaWu Sushi Fusion officially opens
+    and receive <strong>10% OFF</strong> your first order or reservation.
+  </div>
+</div>
   </div>
 </body>
 </html>`;
@@ -621,9 +652,11 @@ DaWu Sushi Fusion
     line-height:1.7;
   "
 >
-  DaWu Sushi Fusion is currently preparing to welcome you.
-  We will send you an email as soon as reservations and online
-  ordering become available.
+  DaWu Sushi Fusion is currently preparing for its grand opening.
+
+Your exclusive promo code <strong>DAWUOPEN10</strong> will become active on opening day and will give you <strong>10% OFF</strong>.
+
+We'll notify you immediately by email when reservations and online ordering are available.
 </p>
 
 <div style="text-align:center;margin-top:28px;">

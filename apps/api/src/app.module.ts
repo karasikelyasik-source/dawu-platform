@@ -16,6 +16,7 @@ import { SystemLogsModule } from './system-logs/system-logs.module';
 import { TablesModule } from './tables/tables.module';
 import { TakeAwayModule } from './take-away/take-away.module';
 import { MarketingModule } from './marketing/marketing.module';
+import { QueueModule } from './queue/queue.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { MarketingModule } from './marketing/marketing.module';
     RestaurantSettingsModule,
     PromoCodesModule,
     MarketingModule,
+    QueueModule,
   ],
 })
 export class AppModule {}

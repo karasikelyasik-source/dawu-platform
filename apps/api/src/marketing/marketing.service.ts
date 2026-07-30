@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 
@@ -12,18 +11,16 @@ import {
 } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
-import { MailService } from '../mail/mail.service';
+import { MarketingEmailQueue } from './marketing-email.queue';
 
 import { CreateMarketingCampaignDto } from './dto/create-marketing-campaign.dto';
 import { UpdateMarketingCampaignDto } from './dto/update-marketing-campaign.dto';
 
 @Injectable()
 export class MarketingService {
-  private readonly logger = new Logger(MarketingService.name);
-
   constructor(
     private readonly prisma: PrismaService,
-    private readonly mailService: MailService,
+    private readonly marketingEmailQueue: MarketingEmailQueue,
   ) {}
 
   async getDashboard() {
@@ -424,14 +421,12 @@ export class MarketingService {
   }
 
   async sendCampaign(id: string) {
-    const campaign = await this.prisma.marketingCampaign.findUnique({
-      where: {
-        id,
-      },
-      include: {
-        promoCode: true,
-      },
-    });
+    const campaign =
+      await this.prisma.marketingCampaign.findUnique({
+        where: {
+          id,
+        },
+      });
 
     if (!campaign) {
       throw new NotFoundException(
@@ -440,14 +435,18 @@ export class MarketingService {
     }
 
     if (
-      campaign.status === MarketingCampaignStatus.SENDING
+      campaign.status ===
+      MarketingCampaignStatus.SENDING
     ) {
       throw new BadRequestException(
         'This campaign is already being sent.',
       );
     }
 
-    if (campaign.status === MarketingCampaignStatus.SENT) {
+    if (
+      campaign.status ===
+      MarketingCampaignStatus.SENT
+    ) {
       throw new BadRequestException(
         'This campaign has already been sent.',
       );
@@ -465,6 +464,9 @@ export class MarketingService {
             ],
           },
         },
+        select: {
+          id: true,
+        },
         orderBy: {
           createdAt: 'asc',
         },
@@ -479,6 +481,9 @@ export class MarketingService {
             campaignId: id,
             status: MarketingRecipientStatus.PENDING,
           },
+          select: {
+            id: true,
+          },
           orderBy: {
             createdAt: 'asc',
           },
@@ -491,120 +496,16 @@ export class MarketingService {
       );
     }
 
-    await this.prisma.marketingCampaign.update({
-      where: {
+    const result =
+      await this.marketingEmailQueue.enqueueCampaign(
         id,
-      },
-      data: {
-        status: MarketingCampaignStatus.SENDING,
-        startedAt: new Date(),
-        completedAt: null,
-      },
-    });
-
-    let sentCount = 0;
-    let failedCount = 0;
-
-    for (const recipient of recipients) {
-      await this.prisma.marketingRecipient.update({
-        where: {
-          id: recipient.id,
-        },
-        data: {
-          status: MarketingRecipientStatus.SENDING,
-          attempts: {
-            increment: 1,
-          },
-          errorMessage: null,
-        },
-      });
-
-      try {
-        await this.mailService.sendMarketingCampaignEmail({
-          name: recipient.name || 'Guest',
-          email: recipient.email,
-
-          subject: campaign.subject,
-          previewText: campaign.previewText,
-
-          title: campaign.title,
-          subtitle: campaign.subtitle,
-          body: campaign.body,
-
-          buttonText: campaign.buttonText,
-          buttonUrl: campaign.buttonUrl,
-          imageUrl: campaign.imageUrl,
-
-          promoCode: campaign.promoCode
-            ? {
-                code: campaign.promoCode.code,
-                discountType:
-                  campaign.promoCode.discountType,
-                discountValue:
-                  campaign.promoCode.discountValue,
-              }
-            : null,
-        });
-
-        sentCount += 1;
-
-        await this.prisma.marketingRecipient.update({
-          where: {
-            id: recipient.id,
-          },
-          data: {
-            status: MarketingRecipientStatus.SENT,
-            sentAt: new Date(),
-            errorMessage: null,
-          },
-        });
-      } catch (error) {
-        failedCount += 1;
-
-        const errorMessage =
-          error instanceof Error
-            ? error.message
-            : String(error);
-
-        this.logger.error(
-          `Campaign ${id}: failed to send to ${recipient.email}: ${errorMessage}`,
-        );
-
-        await this.prisma.marketingRecipient.update({
-          where: {
-            id: recipient.id,
-          },
-          data: {
-            status: MarketingRecipientStatus.FAILED,
-            failedAt: new Date(),
-            errorMessage,
-          },
-        });
-      }
-
-      await this.sleep(1000);
-    }
-
-    await this.refreshCampaignStatistics(id);
-
-    await this.prisma.marketingCampaign.update({
-      where: {
-        id,
-      },
-      data: {
-        status:
-          sentCount > 0
-            ? MarketingCampaignStatus.SENT
-            : MarketingCampaignStatus.FAILED,
-
-        completedAt: new Date(),
-      },
-    });
+        recipients.map((recipient) => recipient.id),
+      );
 
     return {
-      success: sentCount > 0,
-      sentCount,
-      failedCount,
+      success: true,
+      queuedCount: result.queuedCount,
+      message: `${result.queuedCount} emails were added to the sending queue.`,
       campaign: await this.findOne(id),
     };
   }
@@ -705,9 +606,4 @@ export class MarketingService {
     }
   }
 
-  private sleep(milliseconds: number): Promise<void> {
-    return new Promise((resolve) =>
-      setTimeout(resolve, milliseconds),
-    );
-  }
 }

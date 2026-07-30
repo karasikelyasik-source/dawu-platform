@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
@@ -10,12 +11,14 @@ import {
 
 import { CreateMarketingCampaignDto } from './dto/create-marketing-campaign.dto';
 import { UpdateMarketingCampaignDto } from './dto/update-marketing-campaign.dto';
+import { MarketingEmailQueue } from './marketing-email.queue';
 import { MarketingService } from './marketing.service';
 
 @Controller('marketing')
 export class MarketingController {
   constructor(
     private readonly marketingService: MarketingService,
+    private readonly marketingEmailQueue: MarketingEmailQueue,
   ) {}
 
   @Get('dashboard')
@@ -26,6 +29,20 @@ export class MarketingController {
   @Get('campaigns')
   findAll() {
     return this.marketingService.findAll();
+  }
+
+  @Get('campaigns/:id/queue-status')
+  async getQueueStatus(@Param('id') id: string) {
+    const status =
+      await this.marketingEmailQueue.getCampaignQueueStatus(id);
+
+    if (!status) {
+      throw new NotFoundException(
+        'Marketing campaign not found.',
+      );
+    }
+
+    return status;
   }
 
   @Get('campaigns/:id')

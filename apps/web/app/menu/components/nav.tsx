@@ -18,6 +18,7 @@ import {
   LogOut,
   ShoppingBag,
   CalendarDays,
+  Mail
 } from 'lucide-react';
 const navItems = [
   { href: '/', label: 'Tables', icon: TableProperties },
@@ -29,6 +30,11 @@ const navItems = [
   { href: '/tips', label: 'Tips', icon: HandCoins },
   { href: '/revenue', label: 'Revenue', icon: BarChart3 },
   { href: '/reservations', label: 'Reservations', icon: CalendarDays },
+  {
+  href: '/marketing',
+  label: 'Marketing',
+  icon: Mail,
+},
 ];
 
 export default function Nav() {

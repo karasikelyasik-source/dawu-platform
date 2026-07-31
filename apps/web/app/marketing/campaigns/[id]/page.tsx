@@ -19,12 +19,14 @@ import CampaignRecipients from '../../components/CampaignRecipients';
 import CampaignStats from '../../components/CampaignStats';
 import CampaignTimeline from '../../components/CampaignTimeline';
 import EmailPreview from '../../components/EmailPreview';
+import SendToContactModal from '../../components/SendToContactModal';
 
 import {
   deleteCampaign,
   getCampaign,
   prepareCampaignRecipients,
   sendCampaign,
+  sendCampaignToContact,
 } from '../../lib/marketing-api';
 
 import type { MarketingCampaign } from '../../lib/marketing-types';
@@ -104,6 +106,14 @@ export default function CampaignDetailsPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+
+  const [sendingToContact, setSendingToContact] =
+    useState(false);
+
+  const [
+    sendToContactModalOpen,
+    setSendToContactModalOpen,
+  ] = useState(false);
 
   const loadCampaign = useCallback(
     async (silent = false) => {
@@ -247,6 +257,44 @@ export default function CampaignDetailsPage() {
       await loadCampaign(true);
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleSendToContact(data: {
+    name?: string;
+    email: string;
+  }) {
+    if (!campaign) {
+      return;
+    }
+
+    setSendingToContact(true);
+    setNotice(null);
+
+    try {
+      const result = await sendCampaignToContact(
+        campaign.id,
+        data,
+      );
+
+      setSendToContactModalOpen(false);
+
+      setNotice({
+        type: 'success',
+        message:
+          result.message ||
+          `Email was queued successfully for ${result.email}.`,
+      });
+    } catch (sendError) {
+      setNotice({
+        type: 'error',
+        message:
+          sendError instanceof Error
+            ? sendError.message
+            : 'Failed to send email to contact.',
+      });
+    } finally {
+      setSendingToContact(false);
     }
   }
 
@@ -397,10 +445,14 @@ export default function CampaignDetailsPage() {
           campaign={campaign}
           preparing={preparing}
           sending={sending}
+          sendingToContact={sendingToContact}
           deleting={deleting}
           refreshing={refreshing}
           onPrepare={() => void handlePrepare()}
           onSend={() => void handleSend()}
+          onSendToContact={() =>
+            setSendToContactModalOpen(true)
+          }
           onDelete={() => void handleDelete()}
           onRefresh={() => void handleRefresh()}
         />
@@ -577,6 +629,18 @@ export default function CampaignDetailsPage() {
           </aside>
         </section>
       </div>
+
+      <SendToContactModal
+        open={sendToContactModalOpen}
+        campaignName={campaign.name}
+        sending={sendingToContact}
+        onClose={() => {
+          if (!sendingToContact) {
+            setSendToContactModalOpen(false);
+          }
+        }}
+        onSubmit={handleSendToContact}
+      />
     </main>
   );
 }

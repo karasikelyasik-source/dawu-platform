@@ -152,3 +152,15 @@ export type SendCampaignResult = {
   failedCount: number;
   campaign: MarketingCampaign;
 };
+export type SendCampaignToContactPayload = {
+  email: string;
+  name?: string;
+};
+
+export type SendCampaignToContactResult = {
+  success: boolean;
+  queued: boolean;
+  jobId: string;
+  email: string;
+  message: string;
+};

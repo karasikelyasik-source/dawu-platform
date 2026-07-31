@@ -3,6 +3,8 @@ import type {
   MarketingCampaign,
   MarketingDashboard,
   SendCampaignResult,
+  SendCampaignToContactPayload,
+  SendCampaignToContactResult,
 } from './marketing-types';
 
 const API_BASE = '/api-proxy/marketing';
@@ -114,4 +116,23 @@ export async function sendCampaign(id: string) {
   });
 
   return parseResponse<SendCampaignResult>(response);
+}
+export async function sendCampaignToContact(
+  id: string,
+  payload: SendCampaignToContactPayload,
+) {
+  const response = await fetch(
+    `${API_BASE}/campaigns/${id}/send-to-contact`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  return parseResponse<SendCampaignToContactResult>(
+    response,
+  );
 }

@@ -20,11 +20,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailService } from '../mail/mail.service';
 
 import {
+  MARKETING_CONTACT_EMAIL_JOB,
   MARKETING_EMAIL_JOB,
   MARKETING_EMAIL_QUEUE,
 } from '../queue/queue.constants';
 
-import { MarketingEmailJobData } from './marketing-email.types';
+import {
+  MarketingCampaignEmailJobData,
+  MarketingContactEmailJobData,
+  MarketingEmailJobData,
+} from './marketing-email.types';
 
 @Processor(MARKETING_EMAIL_QUEUE, {
   concurrency: 2,
@@ -49,14 +54,30 @@ export class MarketingEmailProcessor extends WorkerHost {
   async process(
     job: Job<MarketingEmailJobData>,
   ): Promise<void> {
-    if (job.name !== MARKETING_EMAIL_JOB) {
-      this.logger.warn(
-        `Unknown marketing job: ${job.name}`,
+    if (job.name === MARKETING_EMAIL_JOB) {
+      await this.processCampaignEmail(
+        job as Job<MarketingCampaignEmailJobData>,
       );
 
       return;
     }
 
+    if (job.name === MARKETING_CONTACT_EMAIL_JOB) {
+      await this.processContactEmail(
+        job as Job<MarketingContactEmailJobData>,
+      );
+
+      return;
+    }
+
+    this.logger.warn(
+      `Unknown marketing job: ${job.name}`,
+    );
+  }
+
+  private async processCampaignEmail(
+    job: Job<MarketingCampaignEmailJobData>,
+  ): Promise<void> {
     const {
       campaignId,
       recipientId,
@@ -67,6 +88,7 @@ export class MarketingEmailProcessor extends WorkerHost {
         where: {
           id: recipientId,
         },
+
         include: {
           campaign: {
             include: {
@@ -126,6 +148,7 @@ export class MarketingEmailProcessor extends WorkerHost {
       where: {
         id: recipientId,
       },
+
       data: {
         status: MarketingRecipientStatus.SENDING,
 
@@ -156,8 +179,10 @@ export class MarketingEmailProcessor extends WorkerHost {
         promoCode: campaign.promoCode
           ? {
               code: campaign.promoCode.code,
+
               discountType:
                 campaign.promoCode.discountType,
+
               discountValue:
                 campaign.promoCode.discountValue,
             }
@@ -210,6 +235,7 @@ export class MarketingEmailProcessor extends WorkerHost {
           where: {
             id: recipientId,
           },
+
           data: {
             status:
               MarketingRecipientStatus.QUEUED,
@@ -218,6 +244,90 @@ export class MarketingEmailProcessor extends WorkerHost {
           },
         });
       }
+
+      throw error;
+    }
+  }
+
+  private async processContactEmail(
+    job: Job<MarketingContactEmailJobData>,
+  ): Promise<void> {
+    const {
+      campaignId,
+      email,
+      name,
+    } = job.data;
+
+    const normalizedEmail =
+      email.toLowerCase().trim();
+
+    const normalizedName =
+      name?.trim() || 'Guest';
+
+    const campaign =
+      await this.prisma.marketingCampaign.findUnique({
+        where: {
+          id: campaignId,
+        },
+
+        include: {
+          promoCode: true,
+        },
+      });
+
+    if (!campaign) {
+      throw new Error(
+        `Marketing campaign ${campaignId} no longer exists.`,
+      );
+    }
+
+    try {
+      await this.mailService.sendMarketingCampaignEmail({
+        name: normalizedName,
+        email: normalizedEmail,
+
+        subject: campaign.subject,
+        previewText: campaign.previewText,
+
+        title: campaign.title,
+        subtitle: campaign.subtitle,
+        body: campaign.body,
+
+        buttonText: campaign.buttonText,
+        buttonUrl: campaign.buttonUrl,
+        imageUrl: campaign.imageUrl,
+
+        promoCode: campaign.promoCode
+          ? {
+              code: campaign.promoCode.code,
+
+              discountType:
+                campaign.promoCode.discountType,
+
+              discountValue:
+                campaign.promoCode.discountValue,
+            }
+          : null,
+      });
+
+      this.logger.log(
+        `Campaign ${campaignId}: individual email sent to ${normalizedEmail}.`,
+      );
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : String(error);
+
+      const maximumAttempts =
+        job.opts.attempts ?? 1;
+
+      const currentAttempt =
+        job.attemptsMade + 1;
+
+      this.logger.error(
+        `Campaign ${campaignId}: individual email to ${normalizedEmail} failed. Attempt ${currentAttempt}/${maximumAttempts}. ${errorMessage}`,
+      );
 
       throw error;
     }
@@ -232,6 +342,7 @@ export class MarketingEmailProcessor extends WorkerHost {
         where: {
           id: recipientId,
         },
+
         data: {
           status: MarketingRecipientStatus.SENT,
           sentAt: new Date(),
@@ -244,6 +355,7 @@ export class MarketingEmailProcessor extends WorkerHost {
         where: {
           id: campaignId,
         },
+
         data: {
           sentCount: {
             increment: 1,
@@ -267,6 +379,7 @@ export class MarketingEmailProcessor extends WorkerHost {
         where: {
           id: recipientId,
         },
+
         data: {
           status:
             MarketingRecipientStatus.FAILED,
@@ -280,6 +393,7 @@ export class MarketingEmailProcessor extends WorkerHost {
         where: {
           id: campaignId,
         },
+
         data: {
           failedCount: {
             increment: 1,
@@ -387,6 +501,7 @@ export class MarketingEmailProcessor extends WorkerHost {
       where: {
         id: campaignId,
       },
+
       data: {
         status:
           sentCount > 0

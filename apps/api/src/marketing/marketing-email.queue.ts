@@ -14,11 +14,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 
 import {
+  MARKETING_CONTACT_EMAIL_JOB,
   MARKETING_EMAIL_JOB,
   MARKETING_EMAIL_QUEUE,
 } from '../queue/queue.constants';
 
-import { MarketingEmailJobData } from './marketing-email.types';
+import {
+  MarketingContactEmailJobData,
+  MarketingEmailJobData,
+} from './marketing-email.types';
 
 @Injectable()
 export class MarketingEmailQueue {
@@ -70,6 +74,8 @@ export class MarketingEmailQueue {
       }),
     ]);
 
+
+    
     const batchSize = 500;
     let totalQueued = 0;
 
@@ -147,6 +153,51 @@ export class MarketingEmailQueue {
       queuedCount: totalQueued,
     };
   }
+
+
+async enqueueContact(
+  data: MarketingContactEmailJobData,
+) {
+  const email = data.email.toLowerCase().trim();
+  const name = data.name?.trim() || null;
+
+  const job = await this.queue.add(
+    MARKETING_CONTACT_EMAIL_JOB,
+    {
+      campaignId: data.campaignId,
+      email,
+      name,
+    },
+    {
+      attempts: 3,
+
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
+
+      removeOnComplete: {
+        age: 24 * 60 * 60,
+        count: 5000,
+      },
+
+      removeOnFail: {
+        age: 7 * 24 * 60 * 60,
+        count: 10000,
+      },
+    },
+  );
+
+  this.logger.log(
+    `Campaign ${data.campaignId}: contact email queued for ${email}.`,
+  );
+
+  return {
+    jobId: String(job.id),
+    email,
+  };
+}
+
 
   async getCampaignQueueStatus(
     campaignId: string,

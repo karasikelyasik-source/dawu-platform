@@ -340,7 +340,7 @@ export default function MarketingPage() {
                   : dashboard.recentCampaigns.map((campaign) => (
                       <a
                         key={campaign.id}
-                        href={`/marketing/${campaign.id}`}
+                        href={`/marketing/campaigns/${campaign.id}`}
                         className="flex flex-col gap-4 rounded-3xl border border-white/10 bg-white/[0.025] p-5 transition hover:border-white/20 hover:bg-white/[0.05] md:flex-row md:items-center md:justify-between"
                       >
                         <div className="min-w-0">

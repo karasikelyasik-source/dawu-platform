@@ -57,12 +57,20 @@ const emptyDashboard: MarketingDashboard = {
   recentCampaigns: [],
 };
 
-function formatNumber(value: number) {
-  return new Intl.NumberFormat('en-NL').format(value);
+function formatNumber(value?: number | null) {
+  const safeValue =
+    typeof value === 'number' && Number.isFinite(value)
+      ? value
+      : 0;
+
+  return new Intl.NumberFormat('en-NL').format(safeValue);
 }
 
-function formatPercent(value: number) {
-  if (!Number.isFinite(value)) {
+function formatPercent(value?: number | null) {
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value)
+  ) {
     return '0%';
   }
 
@@ -74,13 +82,19 @@ function formatDate(value?: string | null) {
     return '—';
   }
 
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return '—';
+  }
+
   return new Intl.DateTimeFormat('en-NL', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value));
+  }).format(date);
 }
 
 function getStatusClasses(status: string) {

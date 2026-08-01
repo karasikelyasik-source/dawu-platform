@@ -13,6 +13,7 @@ import { CreateMarketingCampaignDto } from './dto/create-marketing-campaign.dto'
 import { UpdateMarketingCampaignDto } from './dto/update-marketing-campaign.dto';
 import { MarketingEmailQueue } from './marketing-email.queue';
 import { MarketingService } from './marketing.service';
+import { SendMarketingContactDto } from './dto/send-marketing-contact.dto';
 
 @Controller('marketing')
 export class MarketingController {
@@ -77,4 +78,14 @@ export class MarketingController {
   sendCampaign(@Param('id') id: string) {
     return this.marketingService.sendCampaign(id);
   }
+  @Post('campaigns/:id/send-to-contact')
+sendToContact(
+  @Param('id') id: string,
+  @Body() dto: SendMarketingContactDto,
+) {
+  return this.marketingService.sendToContact(
+    id,
+    dto,
+  );
+}
 }

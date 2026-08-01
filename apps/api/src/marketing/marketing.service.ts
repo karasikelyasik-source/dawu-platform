@@ -15,7 +15,7 @@ import { MarketingEmailQueue } from './marketing-email.queue';
 
 import { CreateMarketingCampaignDto } from './dto/create-marketing-campaign.dto';
 import { UpdateMarketingCampaignDto } from './dto/update-marketing-campaign.dto';
-
+import { SendMarketingContactDto } from './dto/send-marketing-contact.dto';
 @Injectable()
 export class MarketingService {
   constructor(
@@ -509,6 +509,42 @@ export class MarketingService {
       campaign: await this.findOne(id),
     };
   }
+
+async sendToContact(
+  id: string,
+  dto: SendMarketingContactDto,
+) {
+  const campaign =
+    await this.prisma.marketingCampaign.findUnique({
+      where: {
+        id,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+  if (!campaign) {
+    throw new NotFoundException(
+      'Marketing campaign not found.',
+    );
+  }
+
+  const result =
+    await this.marketingEmailQueue.enqueueContact({
+      campaignId: id,
+      email: dto.email,
+      name: dto.name,
+    });
+
+  return {
+    success: true,
+    queued: true,
+    jobId: result.jobId,
+    email: result.email,
+    message: `Email to ${result.email} was added to the sending queue.`,
+  };
+}
 
   private async refreshCampaignStatistics(
     campaignId: string,

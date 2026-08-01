@@ -892,6 +892,7 @@ function AdminSidebar({
             Live
           </span>
         </Link>
+        
         <Link
   href="https://pos.dawubeverwijk.nl/marketing"
   className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-black text-zinc-500 transition hover:bg-white/[0.05] hover:text-white"
@@ -1120,6 +1121,13 @@ function AdminMobileMenu({
           <MobileAdminLink
             href="/admin/promo-codes"
             title="Promo Center"
+            badge="Live"
+            onClick={onClose}
+          />
+
+          <MobileAdminLink
+            href="https://pos.dawubeverwijk.nl/marketing"
+            title="Marketing"
             badge="Live"
             onClick={onClose}
           />

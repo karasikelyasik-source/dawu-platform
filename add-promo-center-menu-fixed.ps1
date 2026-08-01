@@ -51,7 +51,7 @@ if ($content -notmatch 'href="/admin/promo-codes"') {
 
 
 <MobileAdminLink
-  href="/marketing"
+  href="https://pos.dawubeverwijk.nl/marketing"
   title="Marketing"
   badge="Live"
   onClick={onClose}

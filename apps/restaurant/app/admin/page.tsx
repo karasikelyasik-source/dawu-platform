@@ -893,6 +893,16 @@ function AdminSidebar({
           </span>
         </Link>
         <Link
+  href="/marketing"
+  className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-black text-zinc-500 transition hover:bg-white/[0.05] hover:text-white"
+>
+  Marketing
+
+  <span className="text-[9px] uppercase tracking-[0.14em] opacity-60">
+    Live
+  </span>
+</Link>
+        <Link
   href="/admin/restaurant-settings"
   className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-left text-sm font-black text-zinc-500 transition hover:bg-white/[0.05] hover:text-white"
 >

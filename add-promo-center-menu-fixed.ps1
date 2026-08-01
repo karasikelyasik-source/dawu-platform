@@ -49,6 +49,13 @@ if ($content -notmatch 'href="/admin/promo-codes"') {
             onClick={onClose}
           />
 
+
+<MobileAdminLink
+  href="/marketing"
+  title="Marketing"
+  badge="Live"
+  onClick={onClose}
+/>
 '@
 
   $mobilePattern = '(?ms)^(?<indent>\s*)<MobileAdminLink\s*\r?\n\s*href="/admin/restaurant-settings"'

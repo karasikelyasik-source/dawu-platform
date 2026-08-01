@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
 import {
   Settings,
   TableProperties,
@@ -18,8 +17,9 @@ import {
   LogOut,
   ShoppingBag,
   CalendarDays,
-  Mail
+  Megaphone,
 } from 'lucide-react';
+
 const navItems = [
   { href: '/', label: 'Tables', icon: TableProperties },
   { href: '/take-away', label: 'Take Away', icon: ShoppingBag },
@@ -29,12 +29,11 @@ const navItems = [
   { href: '/printers', label: 'Printers', icon: Printer },
   { href: '/tips', label: 'Tips', icon: HandCoins },
   { href: '/revenue', label: 'Revenue', icon: BarChart3 },
-  { href: '/reservations', label: 'Reservations', icon: CalendarDays },
   {
-  href: '/marketing',
-  label: 'Marketing',
-  icon: Mail,
-},
+    href: '/reservations',
+    label: 'Reservations',
+    icon: CalendarDays,
+  },
 ];
 
 export default function Nav() {
@@ -42,12 +41,17 @@ export default function Nav() {
   const pathname = usePathname();
 
   async function logout() {
-    const sessionId = sessionStorage.getItem('dawu-session-id');
+    const sessionId = sessionStorage.getItem(
+      'dawu-session-id',
+    );
 
     if (sessionId) {
-      await fetch(`http://31.57.201.45:3000/admin-sessions/${sessionId}/logout`, {
-        method: 'PATCH',
-      }).catch(() => null);
+      await fetch(
+        `http://31.57.201.45:3000/admin-sessions/${sessionId}/logout`,
+        {
+          method: 'PATCH',
+        },
+      ).catch(() => null);
     }
 
     sessionStorage.removeItem('dawu-user');
@@ -58,7 +62,10 @@ export default function Nav() {
 
   function isActive(href: string) {
     if (href === '/') {
-      return pathname === '/' || pathname.startsWith('/tables');
+      return (
+        pathname === '/' ||
+        pathname.startsWith('/tables')
+      );
     }
 
     return pathname.startsWith(href);
@@ -82,8 +89,12 @@ export default function Nav() {
               }`}
             >
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.08] to-transparent opacity-0 transition group-hover:opacity-100" />
+
               <Icon size={18} className="relative z-10" />
-              <span className="relative z-10">{item.label}</span>
+
+              <span className="relative z-10">
+                {item.label}
+              </span>
             </a>
           );
         })}
@@ -91,7 +102,8 @@ export default function Nav() {
 
       <div className="relative flex justify-end">
         <button
-          onClick={() => setOpen(!open)}
+          type="button"
+          onClick={() => setOpen((value) => !value)}
           className={`flex items-center gap-2 rounded-2xl border px-4 py-3 font-black transition-all duration-300 ${
             open
               ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300 shadow-lg shadow-emerald-500/10'
@@ -99,7 +111,9 @@ export default function Nav() {
           }`}
         >
           <Settings size={20} />
-          <span className="hidden sm:inline">Settings</span>
+          <span className="hidden sm:inline">
+            Settings
+          </span>
         </button>
 
         {open && (
@@ -108,6 +122,7 @@ export default function Nav() {
               <div className="text-xs font-black uppercase tracking-[0.25em] text-zinc-500">
                 System
               </div>
+
               <div className="mt-1 text-sm text-zinc-300">
                 DaWu POS settings
               </div>
@@ -121,7 +136,10 @@ export default function Nav() {
                 <MonitorCog size={18} />
                 Sessions
               </span>
-              <span className="text-xs text-zinc-500">CTRL+1</span>
+
+              <span className="text-xs text-zinc-500">
+                CTRL+1
+              </span>
             </a>
 
             <a
@@ -132,7 +150,28 @@ export default function Nav() {
                 <QrCode size={18} />
                 QR Codes
               </span>
-              <span className="text-xs text-zinc-500">QR</span>
+
+              <span className="text-xs text-zinc-500">
+                QR
+              </span>
+            </a>
+
+            <a
+              href="/marketing"
+              className={`flex items-center justify-between rounded-2xl px-4 py-3 text-sm font-bold transition ${
+                pathname.startsWith('/marketing')
+                  ? 'bg-violet-500/15 text-violet-300'
+                  : 'text-zinc-200 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <span className="flex items-center gap-3">
+                <Megaphone size={18} />
+                Marketing
+              </span>
+
+              <span className="text-xs text-zinc-500">
+                CRM
+              </span>
             </a>
 
             <a
@@ -143,12 +182,16 @@ export default function Nav() {
                 <Keyboard size={18} />
                 Hotkeys
               </span>
-              <span className="text-xs text-zinc-500">CTRL+H</span>
+
+              <span className="text-xs text-zinc-500">
+                CTRL+H
+              </span>
             </a>
 
             <div className="my-2 h-px bg-white/10" />
 
             <button
+              type="button"
               onClick={logout}
               className="flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold text-red-400 transition hover:bg-red-500/10"
             >

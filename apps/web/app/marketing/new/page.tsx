@@ -13,6 +13,11 @@ import {
   Send,
   Tag,
   Users,
+  Sparkles,
+  CakeSlice,
+  Percent,
+  UtensilsCrossed,
+  Megaphone,
 } from 'lucide-react';
 
 type AudienceType =
@@ -44,6 +49,107 @@ type CreatedCampaign = {
   subject: string;
   status: string;
 };
+
+type CampaignTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  icon: typeof Sparkles;
+  values: Partial<CampaignForm>;
+};
+
+const campaignTemplates: CampaignTemplate[] = [
+  {
+    id: 'weekend-offer',
+    name: 'Weekend Offer',
+    description: 'A ready-to-use promotion for Friday, Saturday or Sunday.',
+    icon: Sparkles,
+    values: {
+      name: 'Weekend sushi promotion',
+      subject: 'Make this weekend special with DaWu',
+      previewText: 'Enjoy a special DaWu offer this weekend.',
+      title: 'Your weekend deserves great sushi',
+      subtitle: 'Visit DaWu Sushi Fusion and enjoy something special.',
+      body:
+        'Make your weekend extra special with fresh sushi, warm dishes and your DaWu favourites. Reserve your table and enjoy a relaxed dining experience with family or friends.',
+      buttonText: 'Reserve a table',
+      buttonUrl: 'https://dawubeverijk.nl',
+      audienceType: 'ALL_CUSTOMERS',
+    },
+  },
+  {
+    id: 'birthday',
+    name: 'Birthday',
+    description: 'A warm birthday message with a personal offer.',
+    icon: CakeSlice,
+    values: {
+      name: 'Birthday campaign',
+      subject: 'Happy birthday from DaWu Sushi Fusion',
+      previewText: 'Celebrate your birthday with something special from DaWu.',
+      title: 'Happy birthday!',
+      subtitle: 'We would love to celebrate this special moment with you.',
+      body:
+        'Celebrate your birthday at DaWu Sushi Fusion. Bring your favourite people, enjoy your favourite dishes and make it a day to remember.',
+      buttonText: 'Plan your celebration',
+      buttonUrl: 'https://dawubeverijk.nl',
+      audienceType: 'MANUAL',
+    },
+  },
+  {
+    id: 'discount',
+    name: 'Discount',
+    description: 'Promote a discount code or limited-time deal.',
+    icon: Percent,
+    values: {
+      name: 'Discount promotion',
+      subject: 'A special DaWu discount for you',
+      previewText: 'Use your DaWu offer before it expires.',
+      title: 'A special offer, just for you',
+      subtitle: 'Enjoy more of your favourites for less.',
+      body:
+        'We have prepared a limited-time offer for you. Visit DaWu Sushi Fusion, use your promo code and enjoy your favourite dishes.',
+      buttonText: 'View offer',
+      buttonUrl: 'https://dawubeverijk.nl',
+      audienceType: 'ALL_CUSTOMERS',
+    },
+  },
+  {
+    id: 'new-menu',
+    name: 'New Menu',
+    description: 'Introduce new dishes, seasonal items or premium sushi.',
+    icon: UtensilsCrossed,
+    values: {
+      name: 'New menu announcement',
+      subject: 'Discover what is new at DaWu',
+      previewText: 'New flavours are waiting for you at DaWu Sushi Fusion.',
+      title: 'Something new is on the menu',
+      subtitle: 'Discover fresh flavours and new favourites at DaWu.',
+      body:
+        'Our menu has something new for you. Discover fresh combinations, premium sushi and exciting dishes created for your next visit.',
+      buttonText: 'Discover the menu',
+      buttonUrl: 'https://dawubeverijk.nl',
+      audienceType: 'ALL_CUSTOMERS',
+    },
+  },
+  {
+    id: 'announcement',
+    name: 'Announcement',
+    description: 'Share important restaurant news or a general update.',
+    icon: Megaphone,
+    values: {
+      name: 'DaWu announcement',
+      subject: 'An update from DaWu Sushi Fusion',
+      previewText: 'Read the latest news from DaWu Sushi Fusion.',
+      title: 'An update from DaWu',
+      subtitle: 'Here is what is happening at DaWu Sushi Fusion.',
+      body:
+        'We have an important update to share with you. Thank you for being part of the DaWu community and for choosing to dine with us.',
+      buttonText: 'Read more',
+      buttonUrl: 'https://dawubeverijk.nl',
+      audienceType: 'ALL_CUSTOMERS',
+    },
+  },
+];
 
 const initialForm: CampaignForm = {
   name: '',
@@ -78,6 +184,8 @@ function optionalValue(value: string) {
 
 export default function NewMarketingCampaignPage() {
   const [form, setForm] = useState<CampaignForm>(initialForm);
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
@@ -103,6 +211,23 @@ export default function NewMarketingCampaignPage() {
       'Your email content will appear here while you build the campaign.',
     [form.body],
   );
+
+  function applyTemplate(template: CampaignTemplate) {
+    setForm((current) => ({
+      ...current,
+      ...template.values,
+      promoCodeId: current.promoCodeId,
+      senderName: current.senderName,
+      senderEmail: current.senderEmail,
+      scheduledAt: current.scheduledAt,
+      imageUrl: current.imageUrl,
+    }));
+
+    setSelectedTemplate(template.id);
+    setCreatedCampaign(null);
+    setError('');
+    setSuccess(`Template "${template.name}" applied.`);
+  }
 
   function updateField<K extends keyof CampaignForm>(
     key: K,
@@ -376,6 +501,91 @@ export default function NewMarketingCampaignPage() {
         className="grid gap-6 xl:grid-cols-[1fr_0.9fr]"
       >
         <div className="space-y-6">
+          <section className="rounded-[2rem] border border-white/10 bg-zinc-950/70 p-6 shadow-2xl backdrop-blur-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-emerald-300">
+                  <Sparkles size={20} />
+                </div>
+
+                <div>
+                  <h2 className="text-xl font-black text-white">
+                    Choose a template
+                  </h2>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    Start with a ready-made campaign and edit anything you like.
+                  </p>
+                </div>
+              </div>
+
+              {selectedTemplate && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm(initialForm);
+                    setSelectedTemplate(null);
+                    setCreatedCampaign(null);
+                    setError('');
+                    setSuccess('Template cleared.');
+                  }}
+                  className="rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-black text-zinc-400 transition hover:bg-white/[0.08] hover:text-white"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {campaignTemplates.map((template) => {
+                const Icon = template.icon;
+                const active = selectedTemplate === template.id;
+
+                return (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => applyTemplate(template)}
+                    className={`group rounded-3xl border p-4 text-left transition ${
+                      active
+                        ? 'border-emerald-400/40 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
+                        : 'border-white/10 bg-white/[0.025] hover:border-white/20 hover:bg-white/[0.05]'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`rounded-2xl border p-3 ${
+                          active
+                            ? 'border-emerald-400/30 bg-emerald-500/15 text-emerald-300'
+                            : 'border-white/10 bg-white/[0.04] text-zinc-400 group-hover:text-white'
+                        }`}
+                      >
+                        <Icon size={19} />
+                      </div>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-black text-white">
+                            {template.name}
+                          </h3>
+
+                          {active && (
+                            <span className="rounded-full bg-emerald-400 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">
+                              Selected
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-1 text-xs leading-5 text-zinc-500">
+                          {template.description}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
           <section className="rounded-[2rem] border border-white/10 bg-zinc-950/70 p-6 shadow-2xl backdrop-blur-xl">
             <div className="flex items-center gap-3">
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-3 text-emerald-300">
